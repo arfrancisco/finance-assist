@@ -50,4 +50,8 @@ test:
 # for a full overview on how database connection configuration can be specified.
 #
 production:
-  url: <%= ENV["DATABASE_URL"] %>
+  primary:
+    url: <%= ENV["DATABASE_URL"] %>
+  queue:
+    url: <%= ENV["DATABASE_URL"] %>
+    migrations_paths: db/queue_schema.rb
