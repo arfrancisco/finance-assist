@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["ruby_3_4", "postgresql_16"]
+nixPkgs = ["ruby_3_4", "postgresql_16", "libyaml", "pkg-config"]
 
 [phases.install]
 cmds = ["bundle install"]
