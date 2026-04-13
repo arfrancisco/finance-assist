@@ -12,10 +12,10 @@ module Disclosures
       # Returns an array of hashes:
       # [{ source_id:, company_name:, disclosure_type:, title:, disclosure_date:, detail_url: }, ...]
       def parse
-        # New PSE EDGE endpoint: /companyDisclosures/search.ax
-        # Table rows contain: Date | Company | Template/Type | Title (with openDiscViewer link)
-        rows = @doc.css("table tbody tr")
-        rows.filter_map { |row| parse_row(row) }
+        # PSE EDGE /companyDisclosures/search.ax
+        # Columns: Template Name (title + company) | Announce Date and Time | PSE Form Number | Report/Circular Number
+        # edge_no is in onclick="openPopup('<edge_no>')" on the title link
+        @doc.css("table.list tbody tr").filter_map { |row| parse_row(row) }
       end
 
       private
@@ -24,22 +24,30 @@ module Disclosures
         cells = row.css("td")
         return nil if cells.size < 2
 
-        # Link contains edge_no as query param: openDiscViewer.do?edge_no=<hex>
-        link = row.css("a[href*='openDiscViewer'], a[href*='edge_no']").first
+        link = cells[0].css("a").first
         return nil unless link
 
-        href = link["href"] || ""
-        edge_no_match = href.match(/edge_no=([a-f0-9]+)/i)
+        # edge_no is in onclick attr: openPopup('abc123...')
+        onclick = link["onclick"] || ""
+        edge_no_match = onclick.match(/openPopup\('([a-f0-9]+)'\)/i)
         source_id = edge_no_match ? edge_no_match[1] : nil
         return nil unless source_id
 
+        # Title text may include "Company Name: Disclosure Title" or just the title
+        full_title = link.text.strip
+        company_name, title = if full_title.include?(": ")
+          full_title.split(": ", 2)
+        else
+          [ nil, full_title ]
+        end
+
         {
           source_id: source_id,
-          company_name: cells[1]&.text&.strip.presence,
+          company_name: company_name.presence,
           disclosure_type: cells[2]&.text&.strip.presence,
-          title: (cells[3]&.text || link.text).strip.presence,
-          disclosure_date: parse_date(cells[0]&.text&.strip),
-          detail_url: build_url(href)
+          title: title.presence || full_title,
+          disclosure_date: parse_date(cells[1]&.text&.strip),
+          detail_url: "https://edge.pse.com.ph/openDiscViewer.do?edge_no=#{source_id}"
         }
       rescue => e
         Rails.logger.warn("[ListingParser] Skipping row due to parse error: #{e.message}")
@@ -48,9 +56,10 @@ module Disclosures
 
       def parse_date(text)
         return nil if text.blank?
-        Date.parse(text)
+        # Format: "Apr 13, 2026 05:22 PM"
+        DateTime.strptime(text.strip, "%b %d, %Y %I:%M %p").to_date
       rescue ArgumentError, TypeError
-        nil
+        Date.parse(text) rescue nil
       end
 
       def build_url(href)
