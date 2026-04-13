@@ -47,6 +47,15 @@ module MarketData
         parse_json(response)
       end
 
+      # Returns last trading day's prices for all PSE symbols in one API call.
+      # Response is an array of hashes including a `code` field (e.g. "ALI.PSE").
+      def fetch_bulk_eod_prices(exchange: PSE_EXCHANGE, date: nil)
+        params = date ? { date: date.to_s } : {}
+        response = get("eod-bulk-last-day/#{exchange}", **params)
+        save_artifact("eod-bulk/#{exchange}", response.body)
+        parse_json(response)
+      end
+
       # Fetch index/benchmark OHLCV data (e.g. "PSEI" for the PSE index)
       def fetch_index_data(symbol:, from:, to:)
         params = { from: from.to_s, to: to.to_s }

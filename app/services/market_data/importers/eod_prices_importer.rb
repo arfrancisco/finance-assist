@@ -22,17 +22,26 @@ module MarketData
       end
 
       # Import the latest trading day's prices for all active stocks.
-      # Respects free-tier call budget by fetching each symbol once.
-      def call_all(from: Date.today - 5, to: Date.today)
+      # Uses the bulk endpoint — 1 API call for the entire exchange.
+      def call_all(date: nil)
+        bulk_rows = @provider.fetch_bulk_eod_prices(date: date)
+        return 0 if bulk_rows.blank?
+
+        stock_map = Stock.all.index_by { |s| s.symbol.upcase }
         total = 0
-        Stock.active.find_each do |stock|
-          rows = @provider.fetch_eod_prices(symbol: stock.symbol, from: from, to: to)
-          total += upsert_prices(stock, rows) if rows.present?
-        rescue Faraday::ResourceNotFound
-          Rails.logger.warn("[EodPricesImporter] 404 for #{stock.symbol}, skipping")
+
+        bulk_rows.group_by { |r| (r[:code] || r["code"]).to_s.split(".").first.upcase }.each do |symbol, rows|
+          stock = stock_map[symbol]
+          unless stock
+            Rails.logger.debug("[EodPricesImporter] No stock record for #{symbol}, skipping")
+            next
+          end
+          # Bulk endpoint returns one row per symbol — wrap in array for upsert_prices
+          total += upsert_prices(stock, rows)
         rescue => e
-          Rails.logger.error("[EodPricesImporter] Error for #{stock.symbol}: #{e.message}")
+          Rails.logger.error("[EodPricesImporter] Error for #{symbol}: #{e.message}")
         end
+
         Rails.logger.info("[EodPricesImporter] Total rows upserted: #{total}")
         total
       end
