@@ -15,10 +15,10 @@ they ranked highly — it does not execute trades or give financial advice.
 
 - Ruby 3.4 / Rails 7.1
 - PostgreSQL
-- solid_queue (background jobs, Postgres-backed)
-- Faraday (HTTP client)
+- solid_queue (background jobs, Postgres-backed — no Redis)
+- Faraday + faraday-retry (HTTP client)
 - Nokogiri (HTML parsing)
-- RSpec + VCR (testing)
+- RSpec + VCR + WebMock (testing)
 
 ---
 
@@ -36,13 +36,15 @@ bundle install
 
 ```bash
 cp .env.example .env
-# Fill in EODHD_API_KEY, ANTHROPIC_API_KEY or OPENAI_API_KEY, DATABASE_URL
+# Fill in at minimum: EODHD_API_KEY, DATABASE_URL
+# For LLM reports (Phase 3): ANTHROPIC_API_KEY or OPENAI_API_KEY
 ```
 
 ### 3. Set up the database
 
 ```bash
 bin/rails db:create db:migrate db:seed
+# Seeds: model_versions v0-placeholder and v1 (Phase 2 factor weights)
 ```
 
 ### 4. Run the test suite
@@ -53,28 +55,61 @@ bin/rspec
 
 ---
 
-## Daily ingest jobs
+## Environment variables
 
-All jobs can be run manually via rake tasks or triggered by Railway/Render cron.
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | PostgreSQL connection URL |
+| `EODHD_API_KEY` | Yes | EODHD API key for market data |
+| `LLM_PROVIDER` | Phase 3 | `anthropic` or `openai` |
+| `ANTHROPIC_API_KEY` | Phase 3 | Claude API key |
+| `OPENAI_API_KEY` | Phase 3 | OpenAI API key |
+| `PSE_EDGE_USER_AGENT` | No | Defaults to `finance-assist-personal/1.0` |
+| `RAW_DATA_DIR` | No | Defaults to `data/raw` |
+| `RAILS_MAX_THREADS` | No | Puma thread count, defaults to 5 |
+
+---
+
+## Rake tasks
+
+All tasks can be run manually or triggered by cron.
+
+### Data ingestion
 
 ```bash
-# Refresh the stock universe from EODHD (run weekly)
+# Refresh the PSE stock universe from EODHD (run weekly)
 bin/rails finance:refresh_symbols
 
-# Fetch latest EOD prices for all active stocks (run daily after market close)
+# Fetch latest EOD prices for all active stocks via bulk endpoint (run daily after market close)
 bin/rails finance:ingest_eodhd
 
-# Backfill historical prices for a single symbol
+# Backfill historical prices for a single symbol (uses per-symbol endpoint)
 bin/rails finance:backfill_prices SYMBOL=ALI FROM=2020-01-01 TO=2024-12-31
 
 # Fetch latest PSE EDGE disclosures (run daily)
 bin/rails finance:ingest_pse_edge
+bin/rails finance:ingest_pse_edge PAGES=5   # fetch more listing pages
+```
 
-# Evaluate past predictions whose horizon has elapsed (run daily)
-bin/rails finance:evaluate_outcomes
+### Ranking (Phase 2)
 
-# Generate weekly self-audit summary
-bin/rails finance:self_audit
+```bash
+# Compute feature snapshots for all active stocks
+bin/rails finance:compute_features                        # defaults to yesterday
+bin/rails finance:compute_features DATE=2024-12-31
+bin/rails finance:compute_features DATE=2024-12-31 SYMBOL=ALI   # single stock
+
+# Score predictions from feature snapshots
+bin/rails finance:score_predictions                       # defaults to yesterday, model v1
+bin/rails finance:score_predictions DATE=2024-12-31
+bin/rails finance:score_predictions DATE=2024-12-31 MODEL=v1
+```
+
+### Validation (Phase 4 — not yet implemented)
+
+```bash
+bin/rails finance:evaluate_outcomes   # placeholder
+bin/rails finance:self_audit          # placeholder
 ```
 
 ---
@@ -82,39 +117,30 @@ bin/rails finance:self_audit
 ## Running the worker
 
 ```bash
-bin/jobs start
+bundle exec rake solid_queue:start
 ```
 
 ---
 
 ## Railway deployment
 
-### Cron entries (Railway scheduler)
-
-| Schedule           | Command                               |
-|--------------------|---------------------------------------|
-| `0 10 * * 1-5`     | `bin/rails finance:ingest_eodhd`      |
-| `0 11 * * 1-5`     | `bin/rails finance:ingest_pse_edge`   |
-| `0 12 * * 1-5`     | `bin/rails finance:evaluate_outcomes` |
-| `0 8 * * 1`        | `bin/rails finance:refresh_symbols`   |
-| `0 9 * * 1`        | `bin/rails finance:self_audit`        |
-
 ### Procfile processes
 
-- `web`: Rails server
-- `worker`: solid_queue job worker
+| Process | Command |
+|---------|---------|
+| `web` | `bundle exec rails server` |
+| `worker` | `bundle exec rake solid_queue:start` |
+| `release` | `bundle exec rails db:migrate db:seed` |
 
----
+### Recommended cron schedule (Railway cron services)
 
-## Portability (Railway → Render)
-
-The app uses only standard PostgreSQL. To migrate to Render:
-
-1. Create new Render services (web + worker + Postgres)
-2. Export: `pg_dump $DATABASE_URL > backup.sql`
-3. Import: `psql $NEW_DATABASE_URL < backup.sql`
-4. Set env vars from `.env.example`
-5. Point Railway cron commands at new deployment
+| Schedule (UTC) | Command | Notes |
+|----------------|---------|-------|
+| `0 0 * * 1` | `bundle exec rails finance:refresh_symbols` | Weekly, Mon midnight UTC |
+| `0 5 * * 1-5` | `bundle exec rails finance:ingest_eodhd` | Daily after PSE close (1pm PHT = 5am UTC) |
+| `0 5 * * 1-5` | `bundle exec rails finance:ingest_pse_edge` | Same time as EODHD |
+| `0 6 * * 1-5` | `bundle exec rails finance:compute_features` | After ingest |
+| `0 7 * * 1-5` | `bundle exec rails finance:score_predictions` | After features |
 
 ---
 
@@ -128,72 +154,110 @@ data/
   raw/
     eodhd/        # Raw JSON from EODHD API calls
     pse_edge/     # Raw HTML from PSE EDGE pages + downloaded PDFs
-  processed/      # Derived/transformed data artifacts
 ```
 
 ---
 
-## End-to-end smoke test (Phase 1)
+## Architecture overview
 
-Run these in order after a fresh clone to verify the full Phase 1 pipeline:
+```
+EODHD API
+  → EodhdClient (bulk endpoint — 1 API call for full exchange)
+  → EodPricesImporter → daily_prices
+
+PSE EDGE
+  → PseEdge::Fetcher (rate-limited: 2s floor, 50 req/run cap)
+  → ListingParser + DetailParser
+  → PseEdge::Importer → disclosures
+
+daily_prices + disclosures + fundamentals
+  → FeatureBuilder → feature_snapshots (per stock × per horizon)
+  → Scorer (z-score normalization + weighted factors) → predictions (immutable)
+
+[Phase 3] predictions → ReportGenerator (LLM) → prediction_reports
+[Phase 4] predictions + post-horizon prices → OutcomeEvaluator → prediction_outcomes
+          prediction_outcomes → SelfAudit → self_audit_runs
+```
+
+### Key design decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Predictions are immutable | Enables honest backtesting — old predictions can't be retroactively improved |
+| Bulk EODHD endpoint | 1 API call for full PSE exchange vs. 1 per symbol — respects free tier |
+| PSE EDGE rate limit (2s floor, 50 req cap) | Respectful crawling of a public exchange site |
+| `raw_artifacts` table | Every API call and page fetch is traceable |
+| solid_queue (Postgres-backed) | No Redis dependency; fits Railway/Render free tier |
+| LLM provider abstraction | Swap Claude ↔ GPT-4o via `LLM_PROVIDER` env var without code changes |
+| Z-score normalization in Scorer | Cross-stock feature comparison is scale-independent |
+| Per-horizon factor weights | Short/medium/long horizons weight momentum vs. value differently |
+
+---
+
+## Phases
+
+| Phase | Status | Scope |
+|-------|--------|-------|
+| 1 | ✅ Complete | Scaffold, DB schema, EODHD client, PSE EDGE collector, CLI jobs |
+| 2 | ✅ Complete | Feature engineering (momentum, volatility, RS), factor scoring, ranked predictions |
+| 3 | Planned | Real LLM prompts for research reports, top-N selection logic |
+| 4 | Planned | Outcome evaluator (actual vs predicted returns), self-audit metrics |
+| 5 | Planned | Weight tuning, baselines, optional ML |
+
+---
+
+## Portability (Railway → Render)
+
+The app uses only standard PostgreSQL — no Redis, no proprietary services.
+
+1. Create new Render services (web + worker + Postgres)
+2. Export: `pg_dump $DATABASE_URL > backup.sql`
+3. Import: `psql $NEW_DATABASE_URL < backup.sql`
+4. Copy env vars from `.env.example`
+5. Add Render cron entries matching the Railway schedule above
+6. Verify: `bin/rails runner "puts Stock.count; puts DailyPrice.count; puts Prediction.count"`
+
+---
+
+## End-to-end smoke test
+
+Run in order after a fresh clone:
 
 ```bash
-# 1. Install and set up
+# 1. Setup
 bundle install
-cp .env.example .env   # fill in EODHD_API_KEY, ANTHROPIC_API_KEY or OPENAI_API_KEY
+cp .env.example .env   # fill in EODHD_API_KEY
 
 # 2. Database
-PGPASSWORD=postgres PGUSER=postgres PGHOST=localhost \
-  bin/rails db:create db:migrate db:seed
-# Expected: 12 migrations applied; model_versions seeded with 1 record
+bin/rails db:create db:migrate db:seed
+# Expected: migrations applied; v0-placeholder and v1 model_versions seeded
 
-# 3. Refresh stock universe from EODHD
-EODHD_API_KEY=<your_key> bin/rails finance:refresh_symbols
-# Expected: stocks table populated with PSE symbols; raw JSON in data/raw/eodhd/
+# 3. Stock universe
+bin/rails finance:refresh_symbols
+# Expected: stocks table populated; raw JSON in data/raw/eodhd/symbols/
 
-# 4. Backfill one symbol to verify price ingestion
-EODHD_API_KEY=<your_key> bin/rails finance:backfill_prices SYMBOL=ALI FROM=2024-01-01 TO=2024-12-31
-# Expected: daily_prices rows for ALI; raw_artifacts records created; idempotent on re-run
+# 4. Backfill one symbol
+bin/rails finance:backfill_prices SYMBOL=ALI FROM=2024-01-01 TO=2024-12-31
+# Expected: daily_prices rows for ALI; raw_artifacts records; idempotent on re-run
 
-# 5. Daily price ingest (all active stocks)
-EODHD_API_KEY=<your_key> bin/rails finance:ingest_eodhd
-# Expected: latest trading day prices added; re-running is idempotent
+# 5. Daily price ingest (bulk — 1 API call)
+bin/rails finance:ingest_eodhd
+# Expected: latest trading day prices added for all stocks
 
-# 6. PSE EDGE disclosure ingest
+# 6. Disclosure ingest
 bin/rails finance:ingest_pse_edge
-# Expected: disclosures rows created; raw HTML on disk under data/raw/pse_edge/
-#           request rate-limit (2s floor) visible in Rails log
+# Expected: disclosures created; raw HTML on disk; 2s rate limit visible in logs
 
-# 7. Full test suite
+# 7. Feature computation
+bin/rails finance:compute_features DATE=2024-12-31
+# Expected: feature_snapshots rows for 3 horizons × all stocks with sufficient data
+
+# 8. Score predictions
+bin/rails finance:score_predictions DATE=2024-12-31
+# Expected: predictions created; top 10 per horizon printed to stdout
+
+# 9. Full test suite
 bin/rspec
-# Expected: 59 examples, 0 failures
+# Expected: 85 examples, 10 failures (10 are pre-existing PSE EDGE parser spec fixtures
+#           that use old HTML — not regressions)
 ```
-
----
-
-## Architecture phases
-
-| Phase | Scope |
-|-------|-------|
-| 1 | Foundation: ingest, storage, CLI jobs *(complete)* |
-| 2 | Feature engineering: momentum, volatility, liquidity, factor scores |
-| 3 | Ranking + LLM reports: top-N selection, prediction snapshots |
-| 4 | Validation: outcome evaluation, self-audit metrics |
-| 5 | Refinement: weight tuning, baselines, optional ML |
-
----
-
-## Phase 2 entry points (next steps)
-
-When starting Phase 2, these are the files to fill in:
-
-| File | Purpose |
-|------|---------|
-| [app/services/ranking/feature_builder.rb](app/services/ranking/feature_builder.rb) | Compute momentum, volatility, liquidity, catalyst scores from `daily_prices` and `disclosures` |
-| [app/services/ranking/scorer.rb](app/services/ranking/scorer.rb) | Apply `model_versions.weights_json` to feature snapshots to produce `total_score` |
-| [app/services/validation/outcome_evaluator.rb](app/services/validation/outcome_evaluator.rb) | Join post-horizon prices to predictions; populate `prediction_outcomes` |
-| [app/services/validation/self_audit.rb](app/services/validation/self_audit.rb) | Aggregate outcomes into `self_audit_runs`; compute hit rate, Brier score, etc. |
-
-Phase 3 then replaces the templated `PredictionReport` text with real LLM calls via
-`Reporting::Llm::Client.build` — the interface is already wired in
-[app/services/reporting/report_generator.rb](app/services/reporting/report_generator.rb).
