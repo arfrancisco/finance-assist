@@ -1,17 +1,155 @@
 module Ranking
-  # Applies versioned factor weights to feature snapshots to produce a total score.
-  # Stub — implemented in Phase 2.
+  # Applies versioned factor weights to feature snapshots to produce immutable Predictions.
   #
-  # Phase 2 will implement weighted factor scoring per horizon:
-  # total_score = Σ (weight_i * normalized_feature_i)
-  # Weights are stored in model_versions.weights_json and versioned explicitly.
+  # Usage (single):
+  #   Scorer.new(model_version:).call(feature_snapshot:)
+  #
+  # Usage (batch — preferred, enables cross-snapshot normalization):
+  #   Scorer.new(model_version:).call_batch(feature_snapshots:)
+  #
+  # Weights are stored in model_version.weights_json keyed by horizon:
+  #   {
+  #     "short"  => { "momentum_5d" => 0.4, "volatility_20d" => -0.2, ... },
+  #     "medium" => { ... },
+  #     "long"   => { ... }
+  #   }
   class Scorer
+    BENCHMARK_SYMBOL = "PSEI".freeze
+    FEATURE_FIELDS = %w[
+      momentum_5d momentum_20d momentum_60d volatility_20d avg_volume_20d
+      relative_strength valuation_score quality_score liquidity_score
+      catalyst_score risk_score
+    ].freeze
+
     def initialize(model_version:)
       @model_version = model_version
+      @weights = model_version.weights_json.with_indifferent_access
     end
 
+    # Score a single snapshot. Uses only its own values — no cross-batch normalization.
     def call(feature_snapshot:)
-      raise NotImplementedError, "Scorer is not yet implemented. See Phase 2."
+      call_batch(feature_snapshots: [ feature_snapshot ]).first
+    end
+
+    # Score a batch of snapshots. Normalizes features across the batch per horizon
+    # so cross-stock comparisons are meaningful.
+    # Returns an array of Predictions (skips existing ones).
+    def call_batch(feature_snapshots:)
+      return [] if feature_snapshots.empty?
+
+      # Group by horizon for per-horizon normalization
+      by_horizon = feature_snapshots.group_by(&:horizon)
+      results = []
+
+      by_horizon.each do |horizon, snapshots|
+        horizon_weights = @weights[horizon] || {}
+        next if horizon_weights.empty?
+
+        # Build z-score normalization stats per feature across this horizon's batch
+        stats = compute_stats(snapshots, horizon_weights.keys)
+
+        snapshots.each do |snapshot|
+          prediction = score_snapshot(snapshot, horizon_weights, stats)
+          results << prediction if prediction
+        end
+      end
+
+      # Assign rank_position per horizon across the full batch
+      assign_ranks(results)
+      results
+    end
+
+    private
+
+    def score_snapshot(snapshot, weights, stats)
+      # Skip if already scored for this combination
+      if Prediction.exists?(
+        stock_id: snapshot.stock_id,
+        as_of_date: snapshot.as_of_date,
+        horizon: snapshot.horizon,
+        model_version_id: @model_version.id
+      )
+        return nil
+      end
+
+      total = 0.0
+      weights.each do |feature, weight|
+        raw = snapshot.public_send(feature)&.to_f
+        next if raw.nil?
+
+        normalized = normalize(raw, stats[feature])
+        total += weight.to_f * normalized
+      end
+
+      # Normalize liquidity_score using avg_volume_20d (stored separately)
+      liq_weight = weights["liquidity_score"]&.to_f
+      if liq_weight
+        raw_vol = snapshot.avg_volume_20d&.to_f
+        unless raw_vol.nil?
+          normalized_liq = normalize(raw_vol, stats["_avg_volume_for_liquidity"])
+          total += liq_weight * normalized_liq
+        end
+      end
+
+      confidence = total.abs.clamp(0.0, 1.0)
+      direction  = total >= 0 ? "up" : "down"
+      rec_type   = (direction == "up" && confidence > 0.6) ? "buy" : "hold"
+
+      Prediction.create!(
+        stock_id:             snapshot.stock_id,
+        model_version_id:     @model_version.id,
+        as_of_date:           snapshot.as_of_date,
+        horizon:              snapshot.horizon,
+        total_score:          total.round(6),
+        confidence:           confidence.round(6),
+        predicted_direction:  direction,
+        recommendation_type:  rec_type,
+        rank_position:        nil,  # set after sorting
+        feature_version:      snapshot.feature_version,
+        benchmark_symbol:     BENCHMARK_SYMBOL
+      )
+    rescue ActiveRecord::RecordInvalid => e
+      Rails.logger.error("[Scorer] Failed to create prediction for stock_id=#{snapshot.stock_id}: #{e.message}")
+      nil
+    end
+
+    # Compute mean + std dev for each weighted feature across the batch.
+    # Also computes stats for avg_volume_20d to normalize liquidity_score.
+    def compute_stats(snapshots, feature_names)
+      stats = {}
+
+      (feature_names + [ "_avg_volume_for_liquidity" ]).each do |key|
+        field = key == "_avg_volume_for_liquidity" ? "avg_volume_20d" : key
+        values = snapshots.filter_map { |s| s.public_send(field)&.to_f rescue nil }
+        next if values.empty?
+
+        mean = values.sum / values.size
+        variance = values.sum { |v| (v - mean)**2 } / values.size
+        std = Math.sqrt(variance)
+        stats[key] = { mean: mean, std: std }
+      end
+
+      stats
+    end
+
+    # Z-score normalization clipped to [-3, 3]
+    def normalize(value, stat)
+      return 0.0 if stat.nil? || stat[:std].zero?
+      z = (value - stat[:mean]) / stat[:std]
+      z.clamp(-3.0, 3.0)
+    end
+
+    def assign_ranks(predictions)
+      predictions.compact!
+      by_horizon = predictions.group_by(&:horizon)
+
+      by_horizon.each do |_horizon, preds|
+        sorted = preds.sort_by { |p| -p.total_score }
+        sorted.each_with_index do |pred, i|
+          # Predictions are immutable — use update_column to bypass the before_update callback
+          pred.update_column(:rank_position, i + 1)
+        end
+      end
     end
   end
 end
