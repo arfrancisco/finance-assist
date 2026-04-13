@@ -29,19 +29,25 @@ module Disclosures
         @last_request_at = nil
       end
 
-      # Fetch the disclosure listing page for a given date range (or latest).
+      # Fetch the disclosure listing page.
       # Returns the raw HTML body.
-      def fetch_listing(page: 1, stock_id: nil)
-        params = { page: page }
-        params[:companyId] = stock_id if stock_id
-        url = "#{BASE_URL}/DisclosureSearch/FindDisclosure"
+      def fetch_listing(page: 1, company_id: nil)
+        params = {
+          pageNo: page,
+          tmplNm: "",
+          sortType: "date",
+          dateSortType: "DESC",
+          cmpySortType: "ASC"
+        }
+        params[:keyword] = company_id if company_id
+        url = "#{BASE_URL}/companyDisclosures/search.ax"
         get(url, params: params, key: "listing/page_#{page}")
       end
 
-      # Fetch a disclosure detail page by its PSE EDGE disclosure ID.
+      # Fetch a disclosure detail page by its PSE EDGE edge_no (hex string).
       def fetch_detail(disclosure_id:)
-        url = "#{BASE_URL}/DisclosureView/ViewDisclosure/#{disclosure_id}"
-        get(url, key: "detail/#{disclosure_id}")
+        url = "#{BASE_URL}/openDiscViewer.do"
+        get(url, params: { edge_no: disclosure_id }, key: "detail/#{disclosure_id}")
       end
 
       # Download a PDF or attachment by URL. Returns raw binary body.

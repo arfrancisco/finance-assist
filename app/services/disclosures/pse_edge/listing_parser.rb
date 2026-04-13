@@ -12,13 +12,9 @@ module Disclosures
       # Returns an array of hashes:
       # [{ source_id:, company_name:, disclosure_type:, title:, disclosure_date:, detail_url: }, ...]
       def parse
-        rows = @doc.css("table#tblResults tbody tr, table.disclosure-table tbody tr, .disclosure-row")
-
-        if rows.empty?
-          # Fallback: look for any table rows with disclosure-like content
-          rows = @doc.css("tbody tr")
-        end
-
+        # New PSE EDGE endpoint: /companyDisclosures/search.ax
+        # Table rows contain: Date | Company | Template/Type | Title (with openDiscViewer link)
+        rows = @doc.css("table tbody tr")
         rows.filter_map { |row| parse_row(row) }
       end
 
@@ -26,20 +22,20 @@ module Disclosures
 
       def parse_row(row)
         cells = row.css("td")
-        return nil if cells.empty?
+        return nil if cells.size < 2
 
-        # PSE EDGE listing typically has: Date | Company | Type | Title | link
-        # Exact selectors depend on live HTML — this covers the common structure
-        link = row.css("a[href*='DisclosureView'], a[href*='ViewDisclosure']").first
+        # Link contains edge_no as query param: openDiscViewer.do?edge_no=<hex>
+        link = row.css("a[href*='openDiscViewer'], a[href*='edge_no']").first
         return nil unless link
 
         href = link["href"] || ""
-        id_match = href.match(/\/(\d+)(?:\/|\z)/)
-        source_id = id_match ? id_match[1] : href.split("/").last
+        edge_no_match = href.match(/edge_no=([a-f0-9]+)/i)
+        source_id = edge_no_match ? edge_no_match[1] : nil
+        return nil unless source_id
 
         {
-          source_id: source_id.presence,
-          company_name: cells[1]&.text&.strip.presence || link.text.strip,
+          source_id: source_id,
+          company_name: cells[1]&.text&.strip.presence,
           disclosure_type: cells[2]&.text&.strip.presence,
           title: (cells[3]&.text || link.text).strip.presence,
           disclosure_date: parse_date(cells[0]&.text&.strip),
