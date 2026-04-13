@@ -1,0 +1,20 @@
+# finance-assist recurring jobs
+# These schedules are for reference. In production (Railway/Render), use the
+# platform's cron scheduler to invoke rake tasks directly (see README).
+# solid_queue recurring tasks can be used as an alternative if the worker process is always running.
+
+ingest_eodhd:
+  class: IngestEodhdJob
+  schedule: "0 10 * * 1-5"  # Weekdays at 10:00 UTC (after PSE market close)
+
+ingest_pse_edge:
+  class: IngestPseEdgeJob
+  schedule: "0 11 * * 1-5"  # Weekdays at 11:00 UTC
+
+evaluate_outcomes:
+  class: EvaluateOutcomesJob
+  schedule: "0 12 * * 1-5"  # Weekdays at 12:00 UTC
+
+self_audit:
+  class: SelfAuditJob
+  schedule: "0 9 * * 1"     # Mondays at 09:00 UTC
