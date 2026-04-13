@@ -22,6 +22,8 @@ module Disclosures
       def call
         imported = 0
 
+        total_rows_found = 0
+
         @pages.times do |i|
           page = i + 1
           html = @fetcher.fetch_listing(page: page)
@@ -30,9 +32,15 @@ module Disclosures
           Rails.logger.info("[PseEdgeImporter] Page #{page}: #{rows.size} disclosure rows found")
           break if rows.empty?
 
+          total_rows_found += rows.size
           rows.each do |row|
             imported += process_row(row)
           end
+        end
+
+        if total_rows_found == 0
+          raise "[PseEdgeImporter] No disclosure rows parsed from any listing page. " \
+                "PSE EDGE HTML structure may have changed."
         end
 
         Rails.logger.info("[PseEdgeImporter] Total new disclosures imported: #{imported}")
