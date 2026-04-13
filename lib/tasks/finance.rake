@@ -41,6 +41,54 @@ namespace :finance do
     puts "Imported #{count} new disclosures."
   end
 
+  desc "Compute feature snapshots for all active stocks (run daily after EODHD ingest)"
+  task compute_features: :environment do
+    date   = ENV.fetch("DATE", Date.yesterday.to_s)
+    symbol = ENV.fetch("SYMBOL", nil)
+    as_of  = Date.parse(date)
+
+    stocks = symbol ? Stock.where(symbol: symbol.upcase) : Stock.where(is_active: true)
+    Rails.logger.info("[rake] finance:compute_features starting for #{stocks.count} stock(s) as of #{as_of}")
+
+    created = 0
+    horizons = %w[short medium long]
+
+    stocks.find_each do |stock|
+      horizons.each do |horizon|
+        snapshot = Ranking::FeatureBuilder.new(stock: stock, as_of_date: as_of, horizon: horizon).call
+        created += 1 if snapshot
+      rescue => e
+        Rails.logger.error("[rake] compute_features error for #{stock.symbol}/#{horizon}: #{e.message}")
+      end
+    end
+
+    puts "Computed #{created} feature snapshots for #{as_of}."
+  end
+
+  desc "Score predictions for all feature snapshots on a given date (run daily after compute_features)"
+  task score_predictions: :environment do
+    date          = ENV.fetch("DATE", Date.yesterday.to_s)
+    model_name    = ENV.fetch("MODEL", "v1")
+    as_of         = Date.parse(date)
+
+    model_version = ModelVersion.find_by!(version_name: model_name)
+    snapshots     = FeatureSnapshot.where(as_of_date: as_of).to_a
+
+    Rails.logger.info("[rake] finance:score_predictions starting: #{snapshots.size} snapshots, model=#{model_name}, date=#{as_of}")
+
+    scorer      = Ranking::Scorer.new(model_version: model_version)
+    predictions = scorer.call_batch(feature_snapshots: snapshots)
+
+    puts "Scored #{predictions.compact.size} new predictions for #{as_of} using #{model_name}."
+
+    %w[short medium long].each do |horizon|
+      top = Prediction.for_date(as_of).for_horizon(horizon).top_ranked(10).includes(:stock)
+      next if top.empty?
+      puts "\nTop 10 #{horizon}-horizon:"
+      top.each { |p| puts "  #{p.rank_position}. #{p.stock.symbol} — score: #{p.total_score.round(4)}, #{p.recommendation_type}" }
+    end
+  end
+
   desc "Evaluate past predictions whose horizon has elapsed (Phase 4)"
   task evaluate_outcomes: :environment do
     puts "Outcome evaluation not yet implemented — coming in Phase 4."
