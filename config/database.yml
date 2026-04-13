@@ -50,7 +50,4 @@ test:
 # for a full overview on how database connection configuration can be specified.
 #
 production:
-  <<: *default
-  database: finance_assist_production
-  username: finance_assist
-  password: <%= ENV["FINANCE_ASSIST_DATABASE_PASSWORD"] %>
+  url: <%= ENV["DATABASE_URL"] %>
