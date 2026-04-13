@@ -1,0 +1,26 @@
+---
+http_interactions:
+- request:
+    method: get
+    uri: https://eodhd.com/api/exchange-symbol-list/PSE?api_token=test-api-key&fmt=json
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      User-Agent:
+      - Faraday v2.14.1
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Content-Type:
+      - application/json; charset=UTF-8
+    body:
+      encoding: UTF-8
+      string: '[{"Code":"ALI","Name":"Ayala Land Inc","Country":"Philippines","Exchange":"PSE","Currency":"PHP","Type":"Common
+        Stock"},{"Code":"BDO","Name":"BDO Unibank Inc","Country":"Philippines","Exchange":"PSE","Currency":"PHP","Type":"Common
+        Stock"},{"Code":"SM","Name":"SM Investments Corporation","Country":"Philippines","Exchange":"PSE","Currency":"PHP","Type":"Common
+        Stock"}]'
+  recorded_at: 'Mon, 13 Apr 2026 00:00:00 GMT'
+recorded_with: VCR 6.4.0

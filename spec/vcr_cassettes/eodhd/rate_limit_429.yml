@@ -1,0 +1,65 @@
+---
+http_interactions:
+- request:
+    method: get
+    uri: https://eodhd.com/api/eod/ALI.PSE?api_token=test-api-key&fmt=json&from=2024-01-01&to=2024-01-31
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      User-Agent:
+      - Faraday v2.14.1
+  response:
+    status:
+      code: 429
+      message: Too Many Requests
+    headers:
+      Content-Type:
+      - application/json
+      Retry-After:
+      - '60'
+    body:
+      encoding: UTF-8
+      string: '{"error":"API rate limit exceeded"}'
+  recorded_at: 'Mon, 13 Apr 2026 00:00:00 GMT'
+- request:
+    method: get
+    uri: https://eodhd.com/api/eod/ALI.PSE?api_token=test-api-key&fmt=json&from=2024-01-01&to=2024-01-31
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      User-Agent:
+      - Faraday v2.14.1
+  response:
+    status:
+      code: 429
+      message: Too Many Requests
+    headers:
+      Content-Type:
+      - application/json
+    body:
+      encoding: UTF-8
+      string: '{"error":"API rate limit exceeded"}'
+  recorded_at: 'Mon, 13 Apr 2026 00:00:00 GMT'
+- request:
+    method: get
+    uri: https://eodhd.com/api/eod/ALI.PSE?api_token=test-api-key&fmt=json&from=2024-01-01&to=2024-01-31
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      User-Agent:
+      - Faraday v2.14.1
+  response:
+    status:
+      code: 429
+      message: Too Many Requests
+    headers:
+      Content-Type:
+      - application/json
+    body:
+      encoding: UTF-8
+      string: '{"error":"API rate limit exceeded"}'
+  recorded_at: 'Mon, 13 Apr 2026 00:00:00 GMT'
+recorded_with: VCR 6.4.0
