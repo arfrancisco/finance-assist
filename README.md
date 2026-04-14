@@ -97,6 +97,13 @@ bin/rails finance:ingest_eodhd DATE=2024-12-31   # fetch bulk prices for a speci
 # Backfill historical prices for a single symbol (uses per-symbol endpoint)
 bin/rails finance:backfill_prices SYMBOL=ALI FROM=2020-01-01 TO=2024-12-31
 
+# Fetch PSEI composite index prices (run daily alongside ingest_eodhd; backfills 2yr on first run)
+bin/rails finance:ingest_pse_index
+
+# Fetch fundamental data for all active stocks (run weekly; ~263 API calls)
+bin/rails finance:ingest_fundamentals
+bin/rails finance:ingest_fundamentals SYMBOL=ALI   # single stock
+
 # Fetch latest PSE EDGE disclosures (run daily)
 bin/rails finance:ingest_pse_edge
 bin/rails finance:ingest_pse_edge PAGES=5   # fetch more listing pages
@@ -172,12 +179,14 @@ bundle exec rake solid_queue:start
 |----------------|---------|-------|
 | `0 0 * * 1` | `bundle exec rails finance:refresh_symbols` | Weekly, Mon midnight UTC |
 | `0 5 * * 1-5` | `bundle exec rails finance:ingest_eodhd` | Daily after PSE close (1pm PHT = 5am UTC) |
-| `0 5 * * 1-5` | `bundle exec rails finance:ingest_pse_edge` | Same time as EODHD |
+| `0 5 * * 1-5` | `bundle exec rails finance:ingest_pse_index` | Daily alongside EODHD |
+| `0 5 * * 1-5` | `bundle exec rails finance:ingest_pse_edge` | Daily alongside EODHD |
 | `0 6 * * 1-5` | `bundle exec rails finance:compute_features` | After ingest |
 | `0 7 * * 1-5` | `bundle exec rails finance:score_predictions` | After features |
 | `0 8 * * 1-5` | `bundle exec rails finance:generate_reports` | After scoring (Phase 3) |
 | `0 9 * * 1-5` | `bundle exec rails finance:evaluate_outcomes` | After reports (Phase 4) |
 | `0 10 * * 1` | `bundle exec rails finance:self_audit` | Weekly Monday (Phase 4) |
+| `0 3 * * 0` | `bundle exec rails finance:ingest_fundamentals` | Weekly Sunday (before market open) |
 
 ---
 
@@ -201,6 +210,9 @@ data/
 EODHD API
   → EodhdClient (bulk endpoint — 1 API call for full exchange)
   → EodPricesImporter → daily_prices
+  → EodhdClient (index endpoint — 1 API call)
+  → ingest_pse_index → daily_prices (PSEI benchmark)
+  → FundamentalsImporter (1 API call/stock, weekly) → fundamentals (pe, roe, pb, roa, revenue, …)
 
 PSE EDGE
   → PseEdge::Fetcher (rate-limited: 2s floor, 50 req/run cap)
@@ -224,7 +236,8 @@ predictions + feature snapshots + disclosures
 | Decision | Rationale |
 |----------|-----------|
 | Predictions are immutable | Enables honest backtesting — old predictions can't be retroactively improved |
-| Bulk EODHD endpoint | 1 API call for full PSE exchange vs. 1 per symbol — respects free tier |
+| Bulk EODHD endpoint | 1 API call for full PSE exchange vs. 1 per symbol (paid plan required) |
+| Fundamentals as TTM row | `pe`/`roe` stored as `period_type: "ttm"` keyed to today; `FeatureBuilder#latest_fundamental` picks it up automatically via `order(period_end_date: :desc)` |
 | PSE EDGE rate limit (2s floor, 50 req cap) | Respectful crawling of a public exchange site |
 | `raw_artifacts` table | Every API call and page fetch is traceable |
 | solid_queue (Postgres-backed) | No Redis dependency; fits Railway/Render free tier |

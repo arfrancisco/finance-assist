@@ -7,12 +7,12 @@ app/services/
 ├── market_data/
 │   ├── provider.rb                        # Abstract interface (Phase 1)
 │   ├── providers/
-│   │   └── eodhd_client.rb                # EODHD API client — bulk endpoint (Phase 1)
+│   │   └── eodhd_client.rb                # EODHD API client — bulk EOD + index + fundamentals (Phase 1)
 │   └── importers/
 │       ├── symbols_importer.rb            # PSE symbol list → stocks (Phase 1)
 │       ├── eod_prices_importer.rb         # OHLCV → daily_prices (Phase 1)
 │       ├── corporate_actions_importer.rb  # Dividends → corporate_actions (Phase 1)
-│       └── fundamentals_importer.rb       # Financials → fundamentals (Phase 1)
+│       └── fundamentals_importer.rb       # EPS (annual) + pe/roe/pb/roa/revenue/… (TTM) → fundamentals (Phase 1)
 │
 ├── disclosures/
 │   └── pse_edge/
@@ -46,6 +46,8 @@ EODHD API
   → EodhdClient (bulk endpoint: 1 API call for full PSE exchange)
   → raw JSON saved to data/raw/eodhd/ + raw_artifacts table
   → Importers → stocks, daily_prices, corporate_actions, fundamentals
+  → EodhdClient (index endpoint: 1 API call/day) → daily_prices (PSEI benchmark)
+  → FundamentalsImporter (1 API call/stock, weekly) → fundamentals.pe/roe/pb/roa/revenue/…
 
 PSE EDGE
   → PseEdge::Fetcher (rate-limited: 2s floor, 50 req/run cap)
@@ -79,8 +81,9 @@ PSE EDGE
 
 | Decision | Rationale |
 |----------|-----------|
-| Provider abstraction for market data | EODHD (free tier) can be replaced by PSE FTP or paid vendor without changing importers |
-| Bulk EODHD endpoint | 1 API call for full PSE exchange vs. 1 per symbol — respects free tier daily limit |
+| Provider abstraction for market data | EODHD can be replaced by PSE FTP or another vendor without changing importers |
+| Bulk EODHD endpoint | 1 API call for full PSE exchange vs. 1 per symbol (paid plan required for bulk) |
+| Fundamentals as TTM row | `pe`/`roe` stored as `period_type: "ttm"` keyed to today; `FeatureBuilder#latest_fundamental` picks it up automatically via `order(period_end_date: :desc)` — no query changes needed |
 | Predictions are immutable | Enables honest backtesting; old predictions cannot be retroactively improved |
 | `raw_artifacts` table | Auditability — every API call and page fetch is traceable to a file on disk |
 | PSE EDGE rate limit (2s floor, 50 req cap) | Respectful crawling; only pages already shown to users |
