@@ -24,7 +24,7 @@ RSpec.describe Validation::OutcomeEvaluator do
       stock: stock,
       model_version: model_version,
       as_of_date: as_of_date,
-      horizon: "short",
+      horizon: "5d",
       rank_position: 1,
       total_score: 0.5,
       confidence: 0.6

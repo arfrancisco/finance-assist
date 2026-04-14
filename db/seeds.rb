@@ -14,21 +14,21 @@ ModelVersion.find_or_create_by!(version_name: "v1") do |mv|
   mv.description = "Phase 2 initial factor model. Momentum-tilted for short horizon, quality/value-tilted for long."
   mv.algorithm_type = "weighted_factor"
   mv.weights_json = {
-    "short" => {
+    "5d" => {
       "momentum_5d"      => 0.40,
       "momentum_20d"     => 0.20,
       "volatility_20d"   => -0.20,
       "relative_strength" => 0.10,
       "liquidity_score"  => 0.10
     },
-    "medium" => {
+    "20d" => {
       "momentum_20d"     => 0.30,
       "momentum_60d"     => 0.20,
       "relative_strength" => 0.20,
       "valuation_score"  => 0.15,
       "quality_score"    => 0.15
     },
-    "long" => {
+    "60d" => {
       "momentum_60d"     => 0.20,
       "valuation_score"  => 0.25,
       "quality_score"    => 0.25,

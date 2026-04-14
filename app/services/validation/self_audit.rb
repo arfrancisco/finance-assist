@@ -24,7 +24,7 @@ module Validation
     def call
       runs_created = 0
 
-      %w[short medium long].each do |horizon|
+      %w[5d 20d 60d].each do |horizon|
         outcomes = recent_outcomes(horizon)
 
         if outcomes.size < MIN_SAMPLE

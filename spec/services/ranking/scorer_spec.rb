@@ -3,21 +3,21 @@ require "rails_helper"
 RSpec.describe Ranking::Scorer do
   let(:weights_json) do
     {
-      "short" => {
+      "5d" => {
         "momentum_5d"       => 0.40,
         "momentum_20d"      => 0.20,
         "volatility_20d"    => -0.20,
         "relative_strength" => 0.10,
         "liquidity_score"   => 0.10
       },
-      "medium" => {
+      "20d" => {
         "momentum_20d"      => 0.30,
         "momentum_60d"      => 0.20,
         "relative_strength" => 0.20,
         "valuation_score"   => 0.15,
         "quality_score"     => 0.15
       },
-      "long" => {
+      "60d" => {
         "momentum_60d"      => 0.20,
         "valuation_score"   => 0.25,
         "quality_score"     => 0.25,
@@ -34,7 +34,7 @@ RSpec.describe Ranking::Scorer do
     create(:feature_snapshot,
       stock: stock,
       as_of_date: Date.new(2024, 12, 31),
-      horizon: "short",
+      horizon: "5d",
       feature_version: "v1",
       momentum_5d: 0.02,
       momentum_20d: 0.05,
@@ -118,15 +118,15 @@ RSpec.describe Ranking::Scorer do
 
     context "with mixed horizons" do
       let(:medium_snapshots) do
-        stocks.map { |s| build_snapshot(stock: s, horizon: "medium") }
+        stocks.map { |s| build_snapshot(stock: s, horizon: "20d") }
       end
 
       it "assigns ranks independently per horizon" do
         all = snapshots + medium_snapshots
         preds = scorer.call_batch(feature_snapshots: all)
 
-        short_ranks  = preds.select { |p| p.horizon == "short"  }.map(&:rank_position).sort
-        medium_ranks = preds.select { |p| p.horizon == "medium" }.map(&:rank_position).sort
+        short_ranks  = preds.select { |p| p.horizon == "5d"  }.map(&:rank_position).sort
+        medium_ranks = preds.select { |p| p.horizon == "20d" }.map(&:rank_position).sort
 
         expect(short_ranks).to eq([1, 2, 3])
         expect(medium_ranks).to eq([1, 2, 3])

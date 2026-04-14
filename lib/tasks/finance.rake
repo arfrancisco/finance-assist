@@ -47,7 +47,7 @@ namespace :finance do
     Rails.logger.info("[rake] finance:compute_features starting for #{stocks.count} stock(s) as of #{as_of}")
 
     created = 0
-    horizons = %w[short medium long]
+    horizons = %w[5d 20d 60d]
 
     stocks.find_each do |stock|
       horizons.each do |horizon|
@@ -77,7 +77,7 @@ namespace :finance do
 
     puts "Scored #{predictions.compact.size} new predictions for #{as_of} using #{model_name}."
 
-    %w[short medium long].each do |horizon|
+    %w[5d 20d 60d].each do |horizon|
       top = Prediction.for_date(as_of).for_horizon(horizon).top_ranked(10).includes(:stock)
       next if top.empty?
       puts "\nTop 10 #{horizon}-horizon:"
@@ -92,7 +92,7 @@ namespace :finance do
     top     = ENV.fetch("TOP", "10").to_i
     as_of   = Date.parse(date)
 
-    horizons = horizon ? [ horizon ] : %w[short medium long]
+    horizons = horizon ? [ horizon ] : %w[5d 20d 60d]
     client   = Reporting::Llm::Client.build
     total    = 0
 

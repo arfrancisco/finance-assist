@@ -30,7 +30,7 @@ module Ranking
 
       new_weights = {}
 
-      %w[short medium long].each do |horizon|
+      %w[5d 20d 60d].each do |horizon|
         horizon_outcomes = outcomes.select { |o| o[:horizon] == horizon }
         next if horizon_outcomes.size < MIN_SAMPLES / 3
 

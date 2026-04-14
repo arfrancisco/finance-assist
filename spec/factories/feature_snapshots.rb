@@ -2,7 +2,7 @@ FactoryBot.define do
   factory :feature_snapshot do
     association :stock
     as_of_date { Date.today }
-    horizon { "short" }
+    horizon { "5d" }
     feature_version { "v1" }
     momentum_5d { 0.02 }
     momentum_20d { 0.05 }

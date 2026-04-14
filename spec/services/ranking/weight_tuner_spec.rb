@@ -3,11 +3,11 @@ require "rails_helper"
 RSpec.describe Ranking::WeightTuner do
   let(:base_weights) do
     {
-      "short"  => { "momentum_5d" => 0.4, "momentum_20d" => 0.2, "volatility_20d" => -0.2,
+      "5d"  => { "momentum_5d" => 0.4, "momentum_20d" => 0.2, "volatility_20d" => -0.2,
                     "relative_strength" => 0.1, "quality_score" => 0.1 },
-      "medium" => { "momentum_20d" => 0.3, "momentum_60d" => 0.2, "relative_strength" => 0.2,
+      "20d" => { "momentum_20d" => 0.3, "momentum_60d" => 0.2, "relative_strength" => 0.2,
                     "valuation_score" => 0.15, "quality_score" => 0.15 },
-      "long"   => { "momentum_60d" => 0.2, "valuation_score" => 0.25, "quality_score" => 0.25,
+      "60d"   => { "momentum_60d" => 0.2, "valuation_score" => 0.25, "quality_score" => 0.25,
                     "relative_strength" => 0.2, "catalyst_score" => 0.1 }
     }
   end
@@ -53,8 +53,8 @@ RSpec.describe Ranking::WeightTuner do
     context "with sufficient outcomes" do
       before do
         # 30 short-horizon outcomes where high momentum_5d correlates with positive excess return
-        15.times { seed_outcome_with_snapshot(horizon: "short", excess_return: 0.05, momentum_5d: 0.08) }
-        15.times { seed_outcome_with_snapshot(horizon: "short", excess_return: -0.03, momentum_5d: -0.02) }
+        15.times { seed_outcome_with_snapshot(horizon: "5d", excess_return: 0.05, momentum_5d: 0.08) }
+        15.times { seed_outcome_with_snapshot(horizon: "5d", excess_return: -0.03, momentum_5d: -0.02) }
       end
 
       it "creates a new ModelVersion" do
@@ -70,13 +70,13 @@ RSpec.describe Ranking::WeightTuner do
 
       it "stores weights_json with horizon keys" do
         result = tuner.call
-        expect(result.weights_json.keys).to include("short")
+        expect(result.weights_json.keys).to include("5d")
       end
     end
 
     context "with insufficient outcomes" do
       before do
-        5.times { seed_outcome_with_snapshot(horizon: "short", excess_return: 0.02, momentum_5d: 0.05) }
+        5.times { seed_outcome_with_snapshot(horizon: "5d", excess_return: 0.02, momentum_5d: 0.05) }
       end
 
       it "returns nil" do

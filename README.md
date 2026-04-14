@@ -122,7 +122,7 @@ bin/rails finance:score_predictions DATE=2024-12-31 MODEL=v1
 # Generate research reports for top-ranked predictions
 bin/rails finance:generate_reports                              # defaults to yesterday, all horizons, top 10
 bin/rails finance:generate_reports DATE=2024-12-31
-bin/rails finance:generate_reports DATE=2024-12-31 HORIZON=short TOP=5
+bin/rails finance:generate_reports DATE=2024-12-31 HORIZON=5d TOP=5
 ```
 
 ### Validation (Phase 4)
@@ -230,7 +230,7 @@ predictions + feature snapshots + disclosures
 | solid_queue (Postgres-backed) | No Redis dependency; fits Railway/Render free tier |
 | LLM provider abstraction | Swap Claude ↔ GPT-4o via `LLM_PROVIDER` env var without code changes |
 | Z-score normalization in Scorer | Cross-stock feature comparison is scale-independent |
-| Per-horizon factor weights | Short/medium/long horizons weight momentum vs. value differently |
+| Per-horizon factor weights | 5d/20d/60d horizons weight momentum vs. value differently |
 
 ---
 
@@ -314,7 +314,7 @@ bin/rails finance:score_predictions DATE=2024-12-31
 # Expected: predictions created; top 10 per horizon printed to stdout
 
 # 9. Generate LLM reports (requires ANTHROPIC_API_KEY or OPENAI_API_KEY)
-bin/rails finance:generate_reports DATE=2024-12-31 HORIZON=short TOP=3
+bin/rails finance:generate_reports DATE=2024-12-31 HORIZON=5d TOP=3
 # Expected: 3 prediction_reports rows; LLM model and prompt_version recorded
 
 # 10. Verify reports

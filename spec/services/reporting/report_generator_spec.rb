@@ -8,7 +8,7 @@ RSpec.describe Reporting::ReportGenerator do
       stock: stock,
       model_version: model_version,
       as_of_date: Date.today,
-      horizon: "short",
+      horizon: "5d",
       rank_position: 1,
       total_score: 0.72,
       recommendation_type: "buy",

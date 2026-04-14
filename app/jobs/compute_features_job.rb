@@ -5,7 +5,7 @@ class ComputeFeaturesJob < ApplicationJob
   # Defaults to yesterday so it can be enqueued the morning after market close.
   def perform(as_of_date = Date.yesterday.to_s)
     as_of    = Date.parse(as_of_date.to_s)
-    horizons = %w[short medium long]
+    horizons = %w[5d 20d 60d]
     created  = 0
 
     Stock.where(is_active: true).find_each do |stock|

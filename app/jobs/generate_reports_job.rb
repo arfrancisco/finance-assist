@@ -5,7 +5,7 @@ class GenerateReportsJob < ApplicationJob
   # Skips predictions that already have a report.
   def perform(as_of_date = Date.yesterday.to_s, horizon = nil, top = 10)
     as_of    = Date.parse(as_of_date.to_s)
-    horizons = horizon ? [ horizon ] : %w[short medium long]
+    horizons = horizon ? [ horizon ] : %w[5d 20d 60d]
     client   = Reporting::Llm::Client.build
     total    = 0
 

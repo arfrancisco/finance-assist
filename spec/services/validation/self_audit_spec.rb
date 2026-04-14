@@ -31,18 +31,18 @@ RSpec.describe Validation::SelfAudit do
   before do
     5.times do
       stock = create(:stock)
-      create_outcome(stock: stock, horizon: "short", beat_benchmark: true,
+      create_outcome(stock: stock, horizon: "5d", beat_benchmark: true,
                      raw_return: 0.05, excess_return: 0.03, confidence: 0.7)
     end
     3.times do
       stock = create(:stock)
-      create_outcome(stock: stock, horizon: "short", beat_benchmark: false,
+      create_outcome(stock: stock, horizon: "5d", beat_benchmark: false,
                      raw_return: -0.02, excess_return: -0.03, confidence: 0.4)
     end
   end
 
   describe "#call" do
-    it "creates a SelfAuditRun for the short horizon" do
+    it "creates a SelfAuditRun for the 5d horizon" do
       expect { audit.call }.to change(SelfAuditRun, :count).by(1)
     end
 
@@ -73,7 +73,7 @@ RSpec.describe Validation::SelfAudit do
 
     it "sets summary_text" do
       audit.call
-      expect(SelfAuditRun.last.summary_text).to include("Short-horizon audit")
+      expect(SelfAuditRun.last.summary_text).to include("5d-horizon audit")
     end
 
     it "sets calibration_notes" do

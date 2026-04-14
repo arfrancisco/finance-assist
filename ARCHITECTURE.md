@@ -88,7 +88,7 @@ PSE EDGE
 | LLM provider abstraction | Swap Claude ↔ GPT-4o via `LLM_PROVIDER` env var without code changes |
 | Prompt caching on Anthropic system block | Reduces cost when the same system prompt is reused across multiple report generations |
 | Z-score normalization in Scorer | Cross-stock feature comparison is scale-independent |
-| Per-horizon factor weights | Short/medium/long horizons weight momentum vs. value differently |
+| Per-horizon factor weights | 5d/20d/60d horizons weight momentum vs. value differently |
 | WeightTuner is advisory | Creates a new ModelVersion but doesn't auto-switch — explicit `MODEL=v2` opt-in |
 
 ## Portability (Railway → Render)

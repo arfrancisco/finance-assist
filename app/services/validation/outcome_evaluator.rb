@@ -8,7 +8,7 @@ module Validation
   #   medium → 20
   #   long   → 60
   class OutcomeEvaluator
-    HORIZON_DAYS = { "short" => 5, "medium" => 20, "long" => 60 }.freeze
+    HORIZON_DAYS = { "5d" => 5, "20d" => 20, "60d" => 60 }.freeze
     PSEI_SYMBOL  = "PSEI".freeze
 
     def call
@@ -76,7 +76,7 @@ module Validation
       Prediction
         .left_outer_joins(:prediction_outcome)
         .where(prediction_outcomes: { id: nil })
-        .where("predictions.as_of_date + (CASE predictions.horizon WHEN 'short' THEN 5 WHEN 'medium' THEN 20 WHEN 'long' THEN 60 END) <= ?", Date.today)
+        .where("predictions.as_of_date + (CASE predictions.horizon WHEN '5d' THEN 5 WHEN '20d' THEN 20 WHEN '60d' THEN 60 END) <= ?", Date.today)
         .includes(:stock)
     end
 

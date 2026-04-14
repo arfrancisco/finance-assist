@@ -15,7 +15,7 @@ module Ranking
   #   }
   class Scorer
     BENCHMARK_SYMBOL = "PSEI".freeze
-    HORIZON_TRADING_DAYS = { "short" => 5, "medium" => 20, "long" => 60 }.freeze
+    HORIZON_TRADING_DAYS = { "5d" => 5, "20d" => 20, "60d" => 60 }.freeze
     FEATURE_FIELDS = %w[
       momentum_5d momentum_20d momentum_60d volatility_20d avg_volume_20d
       relative_strength valuation_score quality_score liquidity_score

@@ -3,7 +3,7 @@ FactoryBot.define do
     association :stock
     association :model_version
     as_of_date { Date.today }
-    horizon { "short" }
+    horizon { "5d" }
     recommendation_type { "review" }
     rank_position { 1 }
     predicted_probability { 0.65 }
