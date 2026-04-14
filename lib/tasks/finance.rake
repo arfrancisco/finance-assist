@@ -141,6 +141,75 @@ namespace :finance do
     end
   end
 
+  desc "Fetch fundamental data for active stocks from EODHD (run weekly; SYMBOL=ALI for single stock)"
+  task ingest_fundamentals: :environment do
+    symbol   = ENV.fetch("SYMBOL", nil)
+    stocks   = symbol ? Stock.where(symbol: symbol.upcase) : Stock.where(is_active: true)
+    importer = MarketData::Importers::FundamentalsImporter.new
+    total    = 0
+
+    Rails.logger.info("[rake] finance:ingest_fundamentals starting for #{stocks.count} stock(s)")
+
+    stocks.find_each do |stock|
+      count = importer.call(symbol: stock.symbol)
+      total += count
+      sleep 0.1
+    rescue => e
+      Rails.logger.error("[rake] ingest_fundamentals error for #{stock.symbol}: #{e.message}")
+    end
+
+    puts "Upserted #{total} fundamental rows."
+  end
+
+  desc "Fetch PSEI composite index prices from EODHD (run daily alongside ingest_eodhd)"
+  task ingest_pse_index: :environment do
+    Rails.logger.info("[rake] finance:ingest_pse_index starting")
+
+    psei_stock = Stock.find_or_create_by!(symbol: "PSEI") do |s|
+      s.company_name = "PSE Composite Index"
+      s.is_active    = false
+    end
+
+    provider = MarketData::Providers::EodhdClient.new
+    from = psei_stock.daily_prices.any? ? 5.days.ago.to_date : 2.years.ago.to_date
+    rows = provider.fetch_index_data(symbol: "PSEI", from: from, to: Date.today)
+
+    if rows.blank?
+      puts "No PSEI index data returned."
+      next
+    end
+
+    upsert_data = rows.filter_map do |row|
+      date  = row[:date]  || row["date"]
+      close = row[:close] || row["close"]
+      next if date.blank? || close.nil?
+
+      {
+        stock_id:       psei_stock.id,
+        trading_date:   Date.parse(date.to_s),
+        open:           row[:open]           || row["open"],
+        high:           row[:high]           || row["high"],
+        low:            row[:low]            || row["low"],
+        close:          close,
+        adjusted_close: row[:adjusted_close] || row["adjusted_close"],
+        volume:         row[:volume]         || row["volume"],
+        source:         "eodhd",
+        fetched_at:     Time.current,
+        created_at:     Time.current,
+        updated_at:     Time.current
+      }
+    end
+
+    result = DailyPrice.upsert_all(
+      upsert_data,
+      unique_by:   [ :stock_id, :trading_date ],
+      update_only: [ :open, :high, :low, :close, :adjusted_close, :volume, :fetched_at ]
+    )
+
+    Rails.logger.info("[rake] ingest_pse_index: upserted #{result.length} PSEI price rows")
+    puts "Upserted #{result.length} PSEI index price rows."
+  end
+
   desc "Generate weekly self-audit summary (run weekly)"
   task self_audit: :environment do
     Rails.logger.info("[rake] finance:self_audit starting")

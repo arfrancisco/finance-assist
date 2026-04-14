@@ -7,6 +7,14 @@ ingest_eodhd:
   class: IngestEodhdJob
   schedule: "0 10 * * 1-5"  # Weekdays at 10:00 UTC (after PSE market close)
 
+ingest_pse_index:
+  class: IngestPseIndexJob
+  schedule: "0 10 * * 1-5"  # Weekdays at 10:00 UTC (alongside ingest_eodhd)
+
+ingest_fundamentals:
+  class: IngestFundamentalsJob
+  schedule: "0 8 * * 0"     # Sundays at 08:00 UTC (weekly)
+
 ingest_pse_edge:
   class: IngestPseEdgeJob
   schedule: "0 11 * * 1-5"  # Weekdays at 11:00 UTC
