@@ -55,19 +55,21 @@ module MarketData
         # row (keyed to Date.today) will always be the freshest and provide pe/roe to scoring.
         ttm_attrs = extract_ttm_attrs(data)
         if ttm_attrs.any?
-          Fundamental.find_or_initialize_by(
-            stock_id:        stock.id,
-            period_type:     "ttm",
-            period_end_date: Date.today
-          ).tap do |f|
-            ttm_attrs.each { |attr, val| f.public_send(:"#{attr}=", val) }
-            f.source     = "eodhd"
-            f.fetched_at = Time.current
-            f.save!
-            count += 1
+          begin
+            Fundamental.find_or_initialize_by(
+              stock_id:        stock.id,
+              period_type:     "ttm",
+              period_end_date: Date.today
+            ).tap do |f|
+              ttm_attrs.each { |attr, val| f.public_send(:"#{attr}=", val) }
+              f.source     = "eodhd"
+              f.fetched_at = Time.current
+              f.save!
+              count += 1
+            end
+          rescue => e
+            Rails.logger.warn("[FundamentalsImporter] Skipping TTM row for #{symbol}: #{e.message}")
           end
-        rescue => e
-          Rails.logger.warn("[FundamentalsImporter] Skipping TTM row for #{symbol}: #{e.message}")
         end
 
         Rails.logger.info("[FundamentalsImporter] #{symbol}: upserted #{count} fundamental rows")
