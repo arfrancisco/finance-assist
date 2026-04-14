@@ -14,10 +14,6 @@ module MarketData
       raise NotImplementedError, "#{self.class}#fetch_corporate_actions is not implemented"
     end
 
-    def fetch_fundamentals(symbol:)
-      raise NotImplementedError, "#{self.class}#fetch_fundamentals is not implemented"
-    end
-
     def fetch_index_data(symbol:, from:, to:)
       raise NotImplementedError, "#{self.class}#fetch_index_data is not implemented"
     end

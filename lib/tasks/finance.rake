@@ -141,29 +141,6 @@ namespace :finance do
     end
   end
 
-  desc "Fetch fundamental data for active stocks from EODHD (run weekly; SYMBOL=ALI for single stock)"
-  task ingest_fundamentals: :environment do
-    symbol   = ENV.fetch("SYMBOL", nil)
-    stocks   = symbol ? Stock.where(symbol: symbol.upcase) : Stock.where(is_active: true)
-    importer = MarketData::Importers::FundamentalsImporter.new
-    total    = 0
-
-    Rails.logger.info("[rake] finance:ingest_fundamentals starting for #{stocks.count} stock(s)")
-
-    stocks.find_each do |stock|
-      count = importer.call(symbol: stock.symbol)
-      total += count
-      sleep 0.1
-    rescue Faraday::ForbiddenError
-      puts "Error: EODHD fundamentals endpoint is not available on your current plan. Aborting."
-      break
-    rescue => e
-      Rails.logger.error("[rake] ingest_fundamentals error for #{stock.symbol}: #{e.message}")
-    end
-
-    puts "Upserted #{total} fundamental rows."
-  end
-
   desc "Fetch PSEI composite index prices from EODHD (run daily alongside ingest_eodhd)"
   task ingest_pse_index: :environment do
     Rails.logger.info("[rake] finance:ingest_pse_index starting")

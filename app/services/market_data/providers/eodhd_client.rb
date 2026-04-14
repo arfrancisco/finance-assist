@@ -40,13 +40,6 @@ module MarketData
         parse_json(response)
       end
 
-      # Returns a hash of fundamental data fields
-      def fetch_fundamentals(symbol:)
-        response = get("fundamentals/#{symbol}.#{PSE_EXCHANGE}")
-        save_artifact("fundamentals/#{symbol}", response.body)
-        parse_json(response)
-      end
-
       # Returns last trading day's prices for all PSE symbols in one API call.
       # Response is an array of hashes including a `code` field (e.g. "ALI.PSE").
       def fetch_bulk_eod_prices(exchange: PSE_EXCHANGE, date: nil)
