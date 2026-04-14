@@ -39,38 +39,43 @@ module Ranking
 
       # Group by horizon for per-horizon normalization
       by_horizon = feature_snapshots.group_by(&:horizon)
-      results = []
 
+      # Step 1: compute scores in memory — no DB writes yet
+      scored = []
       by_horizon.each do |horizon, snapshots|
         horizon_weights = @weights[horizon] || {}
         next if horizon_weights.empty?
 
-        # Build z-score normalization stats per feature across this horizon's batch
         stats = compute_stats(snapshots, horizon_weights.keys)
-
         snapshots.each do |snapshot|
-          prediction = score_snapshot(snapshot, horizon_weights, stats)
-          results << prediction if prediction
+          row = compute_score(snapshot, horizon_weights, stats)
+          scored << row if row
         end
       end
 
-      # Assign rank_position per horizon across the full batch
-      assign_ranks(results)
-      results
+      # Step 2: assign rank_position in memory per horizon before any DB writes
+      scored.group_by { |r| r[:horizon] }.each do |_horizon, rows|
+        rows.sort_by { |r| -r[:total_score] }.each_with_index do |row, i|
+          row[:rank_position] = i + 1
+        end
+      end
+
+      # Step 3: persist — rank_position is already set so no post-create update needed
+      scored.filter_map { |row| persist_prediction(row) }
     end
 
     private
 
-    def score_snapshot(snapshot, weights, stats)
+    # Compute score for a snapshot in memory — no DB writes.
+    # Returns a hash of prediction attributes, or nil if already scored.
+    def compute_score(snapshot, weights, stats)
       # Skip if already scored for this combination
-      if Prediction.exists?(
-        stock_id: snapshot.stock_id,
-        as_of_date: snapshot.as_of_date,
-        horizon: snapshot.horizon,
+      return nil if Prediction.exists?(
+        stock_id:         snapshot.stock_id,
+        as_of_date:       snapshot.as_of_date,
+        horizon:          snapshot.horizon,
         model_version_id: @model_version.id
       )
-        return nil
-      end
 
       total = 0.0
       weights.each do |feature, weight|
@@ -95,21 +100,25 @@ module Ranking
       direction  = total >= 0 ? "up" : "down"
       rec_type   = (direction == "up" && confidence > 0.6) ? "buy" : "hold"
 
-      Prediction.create!(
-        stock_id:             snapshot.stock_id,
-        model_version_id:     @model_version.id,
-        as_of_date:           snapshot.as_of_date,
-        horizon:              snapshot.horizon,
-        total_score:          total.round(6),
-        confidence:           confidence.round(6),
-        predicted_direction:  direction,
-        recommendation_type:  rec_type,
-        rank_position:        nil,  # set after sorting
-        feature_version:      snapshot.feature_version,
-        benchmark_symbol:     BENCHMARK_SYMBOL
-      )
+      {
+        stock_id:            snapshot.stock_id,
+        model_version_id:    @model_version.id,
+        as_of_date:          snapshot.as_of_date,
+        horizon:             snapshot.horizon,
+        total_score:         total.round(6),
+        confidence:          confidence.round(6),
+        predicted_direction: direction,
+        recommendation_type: rec_type,
+        rank_position:       nil,  # set by call_batch before persisting
+        feature_version:     snapshot.feature_version,
+        benchmark_symbol:    BENCHMARK_SYMBOL
+      }
+    end
+
+    def persist_prediction(attrs)
+      Prediction.create!(attrs)
     rescue ActiveRecord::RecordInvalid => e
-      Rails.logger.error("[Scorer] Failed to create prediction for stock_id=#{snapshot.stock_id}: #{e.message}")
+      Rails.logger.error("[Scorer] Failed to create prediction for stock_id=#{attrs[:stock_id]}: #{e.message}")
       nil
     end
 
@@ -139,17 +148,5 @@ module Ranking
       z.clamp(-3.0, 3.0)
     end
 
-    def assign_ranks(predictions)
-      predictions.compact!
-      by_horizon = predictions.group_by(&:horizon)
-
-      by_horizon.each do |_horizon, preds|
-        sorted = preds.sort_by { |p| -p.total_score }
-        sorted.each_with_index do |pred, i|
-          # Predictions are immutable — use update_column to bypass the before_update callback
-          pred.update_column(:rank_position, i + 1)
-        end
-      end
-    end
   end
 end

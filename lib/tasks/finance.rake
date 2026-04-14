@@ -8,13 +8,9 @@ namespace :finance do
 
   desc "Fetch latest EOD prices for all active stocks from EODHD (run daily after market close)"
   task ingest_eodhd: :environment do
-    from = ENV.fetch("FROM", (Date.today - 5).to_s)
-    to   = ENV.fetch("TO",   Date.today.to_s)
-    Rails.logger.info("[rake] finance:ingest_eodhd starting (#{from} to #{to})")
-    count = MarketData::Importers::EodPricesImporter.new.call_all(
-      from: Date.parse(from),
-      to:   Date.parse(to)
-    )
+    date = ENV["DATE"] ? Date.parse(ENV["DATE"]) : nil
+    Rails.logger.info("[rake] finance:ingest_eodhd starting (bulk, date=#{date || 'latest'})")
+    count = MarketData::Importers::EodPricesImporter.new.call_all(date: date)
     puts "Upserted #{count} price rows."
   end
 

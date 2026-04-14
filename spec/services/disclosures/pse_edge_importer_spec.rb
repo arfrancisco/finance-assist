@@ -8,13 +8,13 @@ RSpec.describe Disclosures::PseEdge::Importer do
   let(:listing_html) do
     <<~HTML
       <html><body>
-      <table id="tblResults">
+      <table class="list">
         <tbody>
           <tr>
-            <td>2024-01-15</td>
-            <td>Ayala Land Inc</td>
+            <td><a onclick="openPopup('99001abcdef12')" href="#">Ayala Land Inc: 2023 Annual Report</a></td>
+            <td>Jan 15, 2024 09:00 AM</td>
             <td>Annual Report</td>
-            <td><a href="/DisclosureView/ViewDisclosure/99001">2023 Annual Report</a></td>
+            <td>PSE Form 17-A</td>
           </tr>
         </tbody>
       </table>
@@ -61,7 +61,7 @@ RSpec.describe Disclosures::PseEdge::Importer do
 
     it "stores the source_id on the disclosure" do
       importer.call
-      expect(Disclosure.last.source_id).to eq("99001")
+      expect(Disclosure.last.source_id).to eq("99001abcdef12")
     end
   end
 end

@@ -8,8 +8,11 @@ class Prediction < ApplicationRecord
   validates :horizon, presence: true, inclusion: { in: %w[short medium long] }
   validates :total_score, presence: true, numericality: true
 
-  # Predictions are immutable — never update an existing record
-  before_update { raise ActiveRecord::ReadOnlyRecord, "Predictions are immutable. Create a new record instead." }
+  # Predictions are immutable — Rails will raise ActiveRecord::ReadOnlyRecord on any update attempt.
+  # All attributes including rank_position are set before the record is first persisted.
+  def readonly?
+    persisted?
+  end
 
   scope :for_horizon, ->(h) { where(horizon: h) }
   scope :for_date, ->(date) { where(as_of_date: date) }

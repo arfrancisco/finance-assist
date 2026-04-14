@@ -29,7 +29,7 @@ module MarketData
       def fetch_eod_prices(symbol:, from:, to:)
         params = { from: from.to_s, to: to.to_s }
         response = get("eod/#{symbol}.#{PSE_EXCHANGE}", **params)
-        save_artifact("eod/#{symbol}", response.body)
+        save_artifact("eod/#{symbol}", response.body, label: "#{from}_#{to}")
         parse_json(response)
       end
 
@@ -101,11 +101,11 @@ module MarketData
         JSON.parse(response.body, symbolize_names: true)
       end
 
-      def save_artifact(key, body)
-        date_str = Date.today.strftime("%Y-%m-%d")
+      def save_artifact(key, body, label: nil)
+        timestamp = label || Date.today.strftime("%Y-%m-%d")
         dir = @raw_data_dir.join(key)
         FileUtils.mkdir_p(dir)
-        path = dir.join("#{date_str}.json")
+        path = dir.join("#{timestamp}.json")
         File.write(path, body)
 
         checksum = Digest::SHA256.hexdigest(body)

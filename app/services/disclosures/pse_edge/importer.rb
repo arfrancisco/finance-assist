@@ -28,7 +28,6 @@ module Disclosures
           page = i + 1
           html = @fetcher.fetch_listing(page: page)
           rows = ListingParser.new(html).parse
-
           Rails.logger.info("[PseEdgeImporter] Page #{page}: #{rows.size} disclosure rows found")
           break if rows.empty?
 
@@ -39,8 +38,9 @@ module Disclosures
         end
 
         if total_rows_found == 0
-          raise "[PseEdgeImporter] No disclosure rows parsed from any listing page. " \
-                "PSE EDGE HTML structure may have changed."
+          Rails.logger.warn("[PseEdgeImporter] No disclosure rows parsed from any listing page. " \
+                            "PSE EDGE HTML structure may have changed.")
+          return 0
         end
 
         Rails.logger.info("[PseEdgeImporter] Total new disclosures imported: #{imported}")
@@ -96,9 +96,11 @@ module Disclosures
       def resolve_stock(company_name)
         return nil if company_name.blank?
 
-        # Try exact company name match first, then partial
-        Stock.find_by("LOWER(company_name) = ?", company_name.downcase) ||
-          Stock.where("LOWER(company_name) LIKE ?", "%#{company_name.downcase.split.first}%").first
+        stock = Stock.find_by("LOWER(company_name) = ?", company_name.downcase)
+        unless stock
+          Rails.logger.warn("[PseEdgeImporter] Could not match company name to a stock: #{company_name.inspect}")
+        end
+        stock
       end
     end
   end

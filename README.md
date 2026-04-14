@@ -82,6 +82,7 @@ bin/rails finance:refresh_symbols
 
 # Fetch latest EOD prices for all active stocks via bulk endpoint (run daily after market close)
 bin/rails finance:ingest_eodhd
+bin/rails finance:ingest_eodhd DATE=2024-12-31   # fetch bulk prices for a specific date
 
 # Backfill historical prices for a single symbol (uses per-symbol endpoint)
 bin/rails finance:backfill_prices SYMBOL=ALI FROM=2020-01-01 TO=2024-12-31
@@ -303,6 +304,5 @@ bin/rails finance:self_audit
 
 # 13. Full test suite
 bin/rspec
-# Expected: 114 examples, 10 failures (10 are pre-existing PSE EDGE parser spec fixtures
-#           that use old HTML — not regressions)
+# Expected: all examples pass, 0 failures
 ```
