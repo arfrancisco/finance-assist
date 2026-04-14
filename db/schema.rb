@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_04_13_134728) do
+ActiveRecord::Schema[7.1].define(version: 2026_04_14_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -198,6 +198,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_13_134728) do
     t.text "calibration_notes"
     t.text "summary_text"
     t.datetime "created_at", null: false
+    t.jsonb "metrics_json"
     t.index ["run_date", "horizon"], name: "index_self_audit_runs_on_run_date_and_horizon"
   end
 

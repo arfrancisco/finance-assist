@@ -15,6 +15,7 @@ module Ranking
   #   }
   class Scorer
     BENCHMARK_SYMBOL = "PSEI".freeze
+    HORIZON_TRADING_DAYS = { "short" => 5, "medium" => 20, "long" => 60 }.freeze
     FEATURE_FIELDS = %w[
       momentum_5d momentum_20d momentum_60d volatility_20d avg_volume_20d
       relative_strength valuation_score quality_score liquidity_score
@@ -100,18 +101,27 @@ module Ranking
       direction  = total >= 0 ? "up" : "down"
       rec_type   = (direction == "up" && confidence > 0.6) ? "buy" : "hold"
 
+      predicted_probability = 1.0 / (1.0 + Math.exp(-total))
+
+      vol = snapshot.volatility_20d&.to_f
+      horizon_days = HORIZON_TRADING_DAYS[snapshot.horizon] || 20
+      horizon_vol = vol ? (vol * Math.sqrt(horizon_days)).round(6) : nil
+
       {
-        stock_id:            snapshot.stock_id,
-        model_version_id:    @model_version.id,
-        as_of_date:          snapshot.as_of_date,
-        horizon:             snapshot.horizon,
-        total_score:         total.round(6),
-        confidence:          confidence.round(6),
-        predicted_direction: direction,
-        recommendation_type: rec_type,
-        rank_position:       nil,  # set by call_batch before persisting
-        feature_version:     snapshot.feature_version,
-        benchmark_symbol:    BENCHMARK_SYMBOL
+        stock_id:               snapshot.stock_id,
+        model_version_id:       @model_version.id,
+        as_of_date:             snapshot.as_of_date,
+        horizon:                snapshot.horizon,
+        total_score:            total.round(6),
+        confidence:             confidence.round(6),
+        predicted_direction:    direction,
+        recommendation_type:    rec_type,
+        predicted_probability:  predicted_probability.round(6),
+        expected_return_min:    horizon_vol ? -horizon_vol : nil,
+        expected_return_max:    horizon_vol,
+        rank_position:          nil,  # set by call_batch before persisting
+        feature_version:        snapshot.feature_version,
+        benchmark_symbol:       BENCHMARK_SYMBOL
       }
     end
 

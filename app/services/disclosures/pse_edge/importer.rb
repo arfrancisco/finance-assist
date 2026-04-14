@@ -11,7 +11,7 @@ module Disclosures
     #
     # Designed to run once daily. Conservative by default (max 2 listing pages).
     class Importer
-      DEFAULT_PAGES = 2.freeze
+      DEFAULT_PAGES = 2
 
       def initialize(fetcher: nil, downloader: nil, pages: DEFAULT_PAGES)
         @fetcher = fetcher || Fetcher.new
