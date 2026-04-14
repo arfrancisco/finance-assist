@@ -89,6 +89,39 @@ namespace :finance do
     end
   end
 
+  desc "Generate LLM research reports for top-ranked predictions (run daily after score_predictions)"
+  task generate_reports: :environment do
+    date    = ENV.fetch("DATE", Date.yesterday.to_s)
+    horizon = ENV.fetch("HORIZON", nil)
+    top     = ENV.fetch("TOP", "10").to_i
+    as_of   = Date.parse(date)
+
+    horizons = horizon ? [ horizon ] : %w[short medium long]
+    client   = Reporting::Llm::Client.build
+    total    = 0
+
+    Rails.logger.info("[rake] finance:generate_reports starting for #{as_of}, horizons=#{horizons.join(',')}, top=#{top}")
+
+    horizons.each do |h|
+      predictions = Prediction.for_date(as_of)
+                              .for_horizon(h)
+                              .top_ranked(top)
+                              .includes(:stock, :prediction_report)
+                              .select { |p| p.prediction_report.nil? }
+
+      predictions.each do |prediction|
+        report = Reporting::ReportGenerator.new(prediction, llm_client: client).call
+        Rails.logger.info("[rake] Report generated for #{prediction.stock.symbol}/#{h} | model=#{report.llm_model}")
+        total += 1
+        sleep 1
+      rescue => e
+        Rails.logger.error("[rake] generate_reports error for prediction #{prediction.id}: #{e.message}")
+      end
+    end
+
+    puts "Generated #{total} reports for #{as_of}."
+  end
+
   desc "Evaluate past predictions whose horizon has elapsed (Phase 4)"
   task evaluate_outcomes: :environment do
     puts "Outcome evaluation not yet implemented — coming in Phase 4."

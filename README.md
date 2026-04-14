@@ -61,9 +61,9 @@ bin/rspec
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | PostgreSQL connection URL |
 | `EODHD_API_KEY` | Yes | EODHD API key for market data |
-| `LLM_PROVIDER` | Phase 3 | `anthropic` or `openai` |
-| `ANTHROPIC_API_KEY` | Phase 3 | Claude API key |
-| `OPENAI_API_KEY` | Phase 3 | OpenAI API key |
+| `LLM_PROVIDER` | Phase 3+ | `anthropic` or `openai` (default: `anthropic`) |
+| `ANTHROPIC_API_KEY` | Phase 3+ | Claude API key (if using Anthropic) |
+| `OPENAI_API_KEY` | Phase 3+ | OpenAI API key (if using OpenAI) |
 | `PSE_EDGE_USER_AGENT` | No | Defaults to `finance-assist-personal/1.0` |
 | `RAW_DATA_DIR` | No | Defaults to `data/raw` |
 | `RAILS_MAX_THREADS` | No | Puma thread count, defaults to 5 |
@@ -105,6 +105,15 @@ bin/rails finance:score_predictions DATE=2024-12-31
 bin/rails finance:score_predictions DATE=2024-12-31 MODEL=v1
 ```
 
+### LLM Reports (Phase 3)
+
+```bash
+# Generate research reports for top-ranked predictions
+bin/rails finance:generate_reports                              # defaults to yesterday, all horizons, top 10
+bin/rails finance:generate_reports DATE=2024-12-31
+bin/rails finance:generate_reports DATE=2024-12-31 HORIZON=short TOP=5
+```
+
 ### Validation (Phase 4 — not yet implemented)
 
 ```bash
@@ -141,6 +150,9 @@ bundle exec rake solid_queue:start
 | `0 5 * * 1-5` | `bundle exec rails finance:ingest_pse_edge` | Same time as EODHD |
 | `0 6 * * 1-5` | `bundle exec rails finance:compute_features` | After ingest |
 | `0 7 * * 1-5` | `bundle exec rails finance:score_predictions` | After features |
+| `0 8 * * 1-5` | `bundle exec rails finance:generate_reports` | After scoring (Phase 3) |
+| `0 9 * * 1-5` | `bundle exec rails finance:evaluate_outcomes` | After reports (Phase 4) |
+| `0 10 * * 1` | `bundle exec rails finance:self_audit` | Weekly Monday (Phase 4) |
 
 ---
 
@@ -174,9 +186,12 @@ daily_prices + disclosures + fundamentals
   → FeatureBuilder → feature_snapshots (per stock × per horizon)
   → Scorer (z-score normalization + weighted factors) → predictions (immutable)
 
-[Phase 3] predictions → ReportGenerator (LLM) → prediction_reports
+predictions + feature snapshots + disclosures
+  → ReportGenerator (structured LLM prompt, Anthropic prompt cached) → prediction_reports
+
 [Phase 4] predictions + post-horizon prices → OutcomeEvaluator → prediction_outcomes
           prediction_outcomes → SelfAudit → self_audit_runs
+[Phase 5] outcomes × features → WeightTuner → new ModelVersion (advisory)
 ```
 
 ### Key design decisions
@@ -200,7 +215,7 @@ daily_prices + disclosures + fundamentals
 |-------|--------|-------|
 | 1 | ✅ Complete | Scaffold, DB schema, EODHD client, PSE EDGE collector, CLI jobs |
 | 2 | ✅ Complete | Feature engineering (momentum, volatility, RS), factor scoring, ranked predictions |
-| 3 | Planned | Real LLM prompts for research reports, top-N selection logic |
+| 3 | ✅ Complete | Structured LLM prompt → prediction_reports (Claude/GPT-4o, prompt cached) |
 | 4 | Planned | Outcome evaluator (actual vs predicted returns), self-audit metrics |
 | 5 | Planned | Weight tuning, baselines, optional ML |
 
