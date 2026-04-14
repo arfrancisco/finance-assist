@@ -72,7 +72,7 @@ module MarketData
 
       def connection
         @connection ||= Faraday.new(url: BASE_URL) do |f|
-          f.request :retry, max: 2, interval: 1, retry_statuses: [ 429, 503 ]
+          f.request :retry, max: 2, interval: 1, retry_statuses: [ 423, 429, 503 ]
           f.response :raise_error
           f.adapter Faraday.default_adapter
         end
@@ -93,7 +93,8 @@ module MarketData
         Rails.logger.warn("[EODHD] 404 for #{path}: #{e.message}")
         raise
       rescue Faraday::ClientError => e
-        Rails.logger.error("[EODHD] Client error for #{path}: #{e.message}")
+        body = e.response&.dig(:body).presence || "(no body)"
+        Rails.logger.error("[EODHD] Client error for #{path}: #{e.message} | response body: #{body}")
         raise
       end
 

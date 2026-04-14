@@ -44,6 +44,9 @@ module MarketData
 
         Rails.logger.info("[EodPricesImporter] Total rows upserted: #{total}")
         total
+      rescue Faraday::ClientError => e
+        Rails.logger.error("[EodPricesImporter] Bulk fetch failed, skipping ingest: #{e.message}")
+        0
       end
 
       private
