@@ -4,7 +4,7 @@ module Reporting
     # Concrete implementations: AnthropicClient, OpenaiClient.
     # Select via ENV["LLM_PROVIDER"] ("anthropic" or "openai").
     class Client
-      CURRENT_PROMPT_VERSION = "v0-template".freeze
+      CURRENT_PROMPT_VERSION = "v1-llm".freeze
 
       # Factory: returns the configured concrete client.
       def self.build

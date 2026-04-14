@@ -1,97 +1,163 @@
 module Reporting
-  # Generates a human-readable research report for a ranked stock prediction.
-  # Phase 1: returns templated text built from the Prediction + FeatureSnapshot.
-  # Phase 3: replace generate_text_* methods with LLM calls via Reporting::Llm::Client.build.
+  # Generates a research report for a ranked stock prediction using an LLM.
+  # Saves the result to prediction_reports (immutable, 1:1 with predictions).
   #
-  # Always saves the result to prediction_reports — provides immutable provenance.
+  # Usage:
+  #   ReportGenerator.new(prediction).call
+  #   ReportGenerator.new(prediction, llm_client: Reporting::Llm::Client.build).call
   class ReportGenerator
-    PROMPT_VERSION = "v0-template".freeze
+    PROMPT_VERSION = "v1-llm".freeze
+
+    SYSTEM_PROMPT = <<~PROMPT.strip.freeze
+      You are a quantitative stock analyst for Philippine Stock Exchange (PSE) equities.
+      Write concise, factual research briefs based on quantitative factor data.
+      Do not give financial advice. Focus on what the data says and why this stock ranked highly.
+      Respond with exactly these labeled sections (one per line, label followed by content):
+      SUMMARY: <1-2 sentences>
+      CATALYSTS: <bullet points, one per line starting with ->
+      RISKS: <bullet points, one per line starting with ->
+      RATIONALE: <1-2 sentences explaining the factor score>
+    PROMPT
 
     def initialize(prediction, llm_client: nil)
       @prediction = prediction
-      @llm_client = llm_client  # nil in Phase 1 (template mode); injected in Phase 3
+      @llm_client = llm_client || Reporting::Llm::Client.build
     end
 
     # Generates and persists a PredictionReport. Returns the report record.
+    # Idempotent — returns existing report if one already exists.
     def call
       return @prediction.prediction_report if @prediction.prediction_report.present?
 
       stock    = @prediction.stock
       snapshot = FeatureSnapshot.find_by(
-        stock_id: @prediction.stock_id,
+        stock_id:   @prediction.stock_id,
         as_of_date: @prediction.as_of_date,
-        horizon: @prediction.horizon
+        horizon:    @prediction.horizon
       )
 
-      summary  = generate_summary(stock, snapshot)
-      catalyst = generate_catalyst(stock, snapshot)
-      risk     = generate_risk(stock, snapshot)
-      rationale = generate_rationale(snapshot)
+      user_prompt = build_user_prompt(stock, snapshot)
+      response    = @llm_client.complete(
+        system:     SYSTEM_PROMPT,
+        user:       user_prompt,
+        max_tokens: 600,
+        temperature: 0.3
+      )
+
+      sections = parse_response(response[:text])
 
       PredictionReport.create!(
-        prediction: @prediction,
-        summary_text: summary,
-        catalyst_text: catalyst,
-        risk_text: risk,
-        rationale_text: rationale,
-        llm_model: nil,  # nil = templated, not LLM-generated
+        prediction:     @prediction,
+        summary_text:   sections[:summary],
+        catalyst_text:  sections[:catalysts],
+        risk_text:      sections[:risks],
+        rationale_text: sections[:rationale],
+        llm_model:      response[:model],
         prompt_version: PROMPT_VERSION
       )
     end
 
     private
 
-    def generate_summary(stock, snapshot)
-      score_str = @prediction.total_score ? format("%.2f", @prediction.total_score) : "N/A"
-      rank_str  = @prediction.rank_position ? "##{@prediction.rank_position}" : "unranked"
+    def build_user_prompt(stock, snapshot)
+      total_ranked = Prediction.for_date(@prediction.as_of_date)
+                               .for_horizon(@prediction.horizon)
+                               .where.not(rank_position: nil)
+                               .count
 
-      "#{stock.symbol} (#{stock.company_name || 'PSE'}) ranks #{rank_str} for " \
-      "#{@prediction.horizon}-term review as of #{@prediction.as_of_date}. " \
-      "Composite score: #{score_str}. Horizon: #{@prediction.horizon}. " \
-      "This is a system-generated template report — LLM narrative will be added in Phase 3."
-    end
+      disclosures = stock.disclosures
+                         .where("disclosure_date >= ?", @prediction.as_of_date - 30)
+                         .order(disclosure_date: :desc)
+                         .limit(3)
+                         .pluck(:title)
+                         .compact
 
-    def generate_catalyst(stock, snapshot)
       lines = []
-      if snapshot
-        lines << "5-day momentum: #{pct(snapshot.momentum_5d)}" if snapshot.momentum_5d
-        lines << "20-day momentum: #{pct(snapshot.momentum_20d)}" if snapshot.momentum_20d
-        lines << "Catalyst score: #{fmt(snapshot.catalyst_score)}" if snapshot.catalyst_score
-      end
-      recent_disclosures = stock.disclosures.recent.limit(2).pluck(:title).compact
-      lines += recent_disclosures.map { |t| "Recent filing: #{t}" } if recent_disclosures.any?
+      lines << "Stock: #{stock.symbol} — #{stock.company_name}"
+      lines << "Horizon: #{@prediction.horizon} | Rank: ##{@prediction.rank_position} of #{total_ranked} | Score: #{fmt(@prediction.total_score)}"
+      lines << "Recommendation: #{@prediction.recommendation_type} | Direction: #{@prediction.predicted_direction} | Confidence: #{fmt(@prediction.confidence)}"
+      lines << ""
+      lines << "Factor Scores:"
 
-      lines.empty? ? "No catalyst data available yet." : lines.join(" | ")
+      if snapshot
+        lines << "  Momentum  5d / 20d / 60d: #{pct(snapshot.momentum_5d)} / #{pct(snapshot.momentum_20d)} / #{pct(snapshot.momentum_60d)}"
+        lines << "  Volatility 20d:            #{pct(snapshot.volatility_20d)}"
+        lines << "  Relative Strength:         #{fmt(snapshot.relative_strength)}"
+        lines << "  Valuation Score:           #{fmt(snapshot.valuation_score)}"
+        lines << "  Quality Score (ROE):       #{fmt(snapshot.quality_score)}"
+        lines << "  Catalyst Score:            #{fmt(snapshot.catalyst_score)}"
+        lines << "  Risk Score:                #{fmt(snapshot.risk_score)}"
+      else
+        lines << "  (Feature snapshot not available for this prediction)"
+      end
+
+      if disclosures.any?
+        lines << ""
+        lines << "Recent disclosures (last 30 days):"
+        disclosures.each { |t| lines << "  - #{t}" }
+      end
+
+      lines << ""
+      lines << "Write the research brief."
+      lines.join("\n")
     end
 
-    def generate_risk(stock, snapshot)
-      lines = []
-      if snapshot
-        lines << "20-day volatility: #{pct(snapshot.volatility_20d)}" if snapshot.volatility_20d
-        lines << "Risk score: #{fmt(snapshot.risk_score)}" if snapshot.risk_score
-        lines << "Liquidity score: #{fmt(snapshot.liquidity_score)}" if snapshot.liquidity_score
+    # Parse LLM response into the 4 sections.
+    # Falls back to storing the full response in summary if parsing fails.
+    def parse_response(text)
+      return { summary: text, catalysts: nil, risks: nil, rationale: nil } if text.blank?
+
+      sections = { summary: nil, catalysts: nil, risks: nil, rationale: nil }
+
+      current_key = nil
+      buffer = []
+
+      text.each_line do |line|
+        stripped = line.strip
+        if stripped.start_with?("SUMMARY:")
+          flush_buffer(sections, current_key, buffer)
+          current_key = :summary
+          buffer = [ stripped.sub(/\ASUMMARY:\s*/, "") ]
+        elsif stripped.start_with?("CATALYSTS:")
+          flush_buffer(sections, current_key, buffer)
+          current_key = :catalysts
+          buffer = [ stripped.sub(/\ACATALYSTS:\s*/, "") ]
+        elsif stripped.start_with?("RISKS:")
+          flush_buffer(sections, current_key, buffer)
+          current_key = :risks
+          buffer = [ stripped.sub(/\ARISKS:\s*/, "") ]
+        elsif stripped.start_with?("RATIONALE:")
+          flush_buffer(sections, current_key, buffer)
+          current_key = :rationale
+          buffer = [ stripped.sub(/\ARATIONALE:\s*/, "") ]
+        elsif current_key
+          buffer << stripped unless stripped.empty? && buffer.last&.empty?
+        end
       end
-      lines.empty? ? "No risk data available yet." : lines.join(" | ")
+      flush_buffer(sections, current_key, buffer)
+
+      # Fallback: if nothing parsed, put everything in summary
+      if sections.values.all?(&:nil?)
+        sections[:summary] = text.strip
+      end
+
+      sections
     end
 
-    def generate_rationale(snapshot)
-      return "Feature snapshot not yet computed for this prediction." unless snapshot
-
-      parts = []
-      parts << "Quality: #{fmt(snapshot.quality_score)}" if snapshot.quality_score
-      parts << "Valuation: #{fmt(snapshot.valuation_score)}" if snapshot.valuation_score
-      parts << "Relative strength: #{fmt(snapshot.relative_strength)}" if snapshot.relative_strength
-      parts.empty? ? "Scores not yet populated." : parts.join(" | ")
+    def flush_buffer(sections, key, buffer)
+      return unless key
+      content = buffer.reject(&:empty?).join("\n").strip
+      sections[key] = content.presence
     end
 
     def pct(val)
       return "N/A" unless val
-      "#{(val * 100).round(2)}%"
+      "#{(val.to_f * 100).round(2)}%"
     end
 
     def fmt(val)
       return "N/A" unless val
-      val.round(4).to_s
+      val.to_f.round(4).to_s
     end
   end
 end
