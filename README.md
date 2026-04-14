@@ -18,6 +18,8 @@ they ranked highly — it does not execute trades or give financial advice.
 - solid_queue (background jobs, Postgres-backed — no Redis)
 - Faraday + faraday-retry (HTTP client)
 - Nokogiri (HTML parsing)
+- Tailwind CSS (via tailwindcss-rails)
+- Hotwire (Turbo + Stimulus)
 - RSpec + VCR + WebMock (testing)
 
 ---
@@ -47,7 +49,15 @@ bin/rails db:create db:migrate db:seed
 # Seeds: model_versions v0-placeholder and v1 (Phase 2 factor weights)
 ```
 
-### 4. Run the test suite
+### 4. Start the development server
+
+```bash
+bin/dev   # starts Rails + Tailwind CSS watcher via Procfile.dev
+```
+
+Visit `http://localhost:3000` to see the ingestion inspector UI.
+
+### 5. Run the test suite
 
 ```bash
 bin/rspec
@@ -233,6 +243,23 @@ predictions + feature snapshots + disclosures
 | 3 | ✅ Complete | Structured LLM prompt → prediction_reports (Claude/GPT-4o, prompt cached) |
 | 4 | ✅ Complete | OutcomeEvaluator (entry/exit vs PSEi), SelfAudit (hit rate, Brier score) |
 | 5 | ✅ Complete | WeightTuner — correlation-based weight retuning → new ModelVersion |
+| UI | 🔄 In progress | Ingestion inspector (Status, Stocks, Prices, Disclosures); Features/Predictions/Reports planned |
+
+---
+
+## Frontend (Ingestion Inspector)
+
+A simple read-only internal UI for verifying that the pipeline is working.
+
+| Route | Description |
+|-------|-------------|
+| `/` | System status — last sync times, record counts |
+| `/stocks` | Active stocks with latest price date, row counts |
+| `/stocks/:id` | Stock detail — prices, disclosures, snapshots, predictions |
+| `/daily_prices` | Price browser with symbol + date range filters |
+| `/disclosures` | Disclosure browser with symbol filter |
+
+Run with `bin/dev` in development (starts Rails + Tailwind CSS watcher).
 
 ---
 
@@ -304,5 +331,5 @@ bin/rails finance:self_audit
 
 # 13. Full test suite
 bin/rspec
-# Expected: all examples pass, 0 failures
+# Expected: 117 examples, 0 failures
 ```

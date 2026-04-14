@@ -1,0 +1,41 @@
+<h1 class="text-xl font-semibold mb-6">Stocks (<%= @stocks.size %>)</h1>
+
+<div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+  <table class="min-w-full divide-y divide-gray-200 text-sm">
+    <thead class="bg-gray-50">
+      <tr>
+        <th class="px-4 py-3 text-left font-medium text-gray-500">Symbol</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-500">Company</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-500">Sector</th>
+        <th class="px-4 py-3 text-right font-medium text-gray-500">Latest Price Date</th>
+        <th class="px-4 py-3 text-right font-medium text-gray-500">Close</th>
+        <th class="px-4 py-3 text-right font-medium text-gray-500">Price Rows</th>
+        <th class="px-4 py-3 text-right font-medium text-gray-500">Disclosures</th>
+        <th class="px-4 py-3 text-right font-medium text-gray-500">Predictions</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      <% if @stocks.empty? %>
+        <tr>
+          <td colspan="8" class="px-4 py-6 text-center text-gray-400">No stocks ingested yet.</td>
+        </tr>
+      <% else %>
+        <% @stocks.each do |stock| %>
+          <% latest = stock.daily_prices.max_by(&:trading_date) %>
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-3 font-medium">
+              <%= link_to stock.symbol, stock_path(stock), class: "text-blue-600 hover:underline" %>
+            </td>
+            <td class="px-4 py-3 text-gray-700"><%= stock.company_name %></td>
+            <td class="px-4 py-3 text-gray-500"><%= stock.sector %></td>
+            <td class="px-4 py-3 text-right text-gray-600"><%= latest&.trading_date %></td>
+            <td class="px-4 py-3 text-right text-gray-600"><%= latest ? number_with_precision(latest.close, precision: 2) : "—" %></td>
+            <td class="px-4 py-3 text-right text-gray-600"><%= number_with_delimiter(stock.daily_prices.size) %></td>
+            <td class="px-4 py-3 text-right text-gray-600"><%= stock.disclosures.size %></td>
+            <td class="px-4 py-3 text-right text-gray-600"><%= stock.predictions.size %></td>
+          </tr>
+        <% end %>
+      <% end %>
+    </tbody>
+  </table>
+</div>

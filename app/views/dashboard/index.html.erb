@@ -1,0 +1,53 @@
+<h1 class="text-xl font-semibold mb-6">System Status</h1>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+  <!-- Sync Status -->
+  <div class="bg-white rounded-lg border border-gray-200 p-5">
+    <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Last Sync</h2>
+    <dl class="space-y-3">
+      <div class="flex justify-between">
+        <dt class="text-sm text-gray-600">EODHD</dt>
+        <dd class="text-sm font-medium"><%= @last_eodhd_sync ? l(@last_eodhd_sync, format: :short) : "Never" %></dd>
+      </div>
+      <div class="flex justify-between">
+        <dt class="text-sm text-gray-600">PSE EDGE</dt>
+        <dd class="text-sm font-medium"><%= @last_pse_edge_sync ? l(@last_pse_edge_sync, format: :short) : "Never" %></dd>
+      </div>
+      <div class="flex justify-between">
+        <dt class="text-sm text-gray-600">Latest Price Date</dt>
+        <dd class="text-sm font-medium"><%= @latest_price_date || "—" %></dd>
+      </div>
+    </dl>
+  </div>
+
+  <!-- Record Counts -->
+  <div class="bg-white rounded-lg border border-gray-200 p-5">
+    <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Record Counts</h2>
+    <dl class="space-y-3">
+      <div class="flex justify-between">
+        <dt class="text-sm text-gray-600">Stocks (active / total)</dt>
+        <dd class="text-sm font-medium"><%= @active_stock_count %> / <%= @stock_count %></dd>
+      </div>
+      <div class="flex justify-between">
+        <dt class="text-sm text-gray-600">Daily Prices</dt>
+        <dd class="text-sm font-medium"><%= number_with_delimiter(@price_count) %></dd>
+      </div>
+      <div class="flex justify-between">
+        <dt class="text-sm text-gray-600">Disclosures</dt>
+        <dd class="text-sm font-medium"><%= number_with_delimiter(@disclosure_count) %></dd>
+      </div>
+      <div class="flex justify-between">
+        <dt class="text-sm text-gray-600">Feature Snapshots</dt>
+        <dd class="text-sm font-medium"><%= number_with_delimiter(@snapshot_count) %></dd>
+      </div>
+      <div class="flex justify-between">
+        <dt class="text-sm text-gray-600">Predictions</dt>
+        <dd class="text-sm font-medium"><%= number_with_delimiter(@prediction_count) %></dd>
+      </div>
+      <div class="flex justify-between">
+        <dt class="text-sm text-gray-600">Reports</dt>
+        <dd class="text-sm font-medium"><%= number_with_delimiter(@report_count) %></dd>
+      </div>
+    </dl>
+  </div>
+</div>

@@ -1,0 +1,156 @@
+<div class="mb-6 flex items-center gap-3">
+  <%= link_to "← Stocks", stocks_path, class: "text-sm text-blue-600 hover:underline" %>
+</div>
+
+<h1 class="text-xl font-semibold mb-1"><%= @stock.symbol %></h1>
+<p class="text-gray-500 text-sm mb-6"><%= @stock.company_name %> · <%= @stock.sector %> · <%= @stock.industry %></p>
+
+<!-- Recent Prices -->
+<section class="mb-8">
+  <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Recent Prices</h2>
+  <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200 text-sm">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-4 py-2 text-left font-medium text-gray-500">Date</th>
+          <th class="px-4 py-2 text-right font-medium text-gray-500">Open</th>
+          <th class="px-4 py-2 text-right font-medium text-gray-500">High</th>
+          <th class="px-4 py-2 text-right font-medium text-gray-500">Low</th>
+          <th class="px-4 py-2 text-right font-medium text-gray-500">Close</th>
+          <th class="px-4 py-2 text-right font-medium text-gray-500">Volume</th>
+          <th class="px-4 py-2 text-left font-medium text-gray-500">Source</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        <% if @latest_prices.empty? %>
+          <tr><td colspan="7" class="px-4 py-4 text-center text-gray-400">No prices yet.</td></tr>
+        <% else %>
+          <% @latest_prices.each do |p| %>
+            <tr>
+              <td class="px-4 py-2"><%= p.trading_date %></td>
+              <td class="px-4 py-2 text-right"><%= number_with_precision(p.open, precision: 2) %></td>
+              <td class="px-4 py-2 text-right"><%= number_with_precision(p.high, precision: 2) %></td>
+              <td class="px-4 py-2 text-right"><%= number_with_precision(p.low, precision: 2) %></td>
+              <td class="px-4 py-2 text-right font-medium"><%= number_with_precision(p.close, precision: 2) %></td>
+              <td class="px-4 py-2 text-right"><%= number_with_delimiter(p.volume) %></td>
+              <td class="px-4 py-2 text-gray-500"><%= p.source %></td>
+            </tr>
+          <% end %>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- Recent Disclosures -->
+<section class="mb-8">
+  <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Recent Disclosures</h2>
+  <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200 text-sm">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-4 py-2 text-left font-medium text-gray-500">Date</th>
+          <th class="px-4 py-2 text-left font-medium text-gray-500">Type</th>
+          <th class="px-4 py-2 text-left font-medium text-gray-500">Title</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        <% if @disclosures.empty? %>
+          <tr><td colspan="3" class="px-4 py-4 text-center text-gray-400">No disclosures yet.</td></tr>
+        <% else %>
+          <% @disclosures.each do |d| %>
+            <tr>
+              <td class="px-4 py-2 whitespace-nowrap"><%= d.disclosure_date %></td>
+              <td class="px-4 py-2 text-gray-500 whitespace-nowrap"><%= d.disclosure_type %></td>
+              <td class="px-4 py-2">
+                <% if d.source_url.present? %>
+                  <%= link_to d.title, d.source_url, target: "_blank", class: "text-blue-600 hover:underline" %>
+                <% else %>
+                  <%= d.title %>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- Feature Snapshots -->
+<section class="mb-8">
+  <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Feature Snapshots</h2>
+  <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200 text-sm">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-4 py-2 text-left font-medium text-gray-500">Date</th>
+          <th class="px-4 py-2 text-left font-medium text-gray-500">Horizon</th>
+          <th class="px-4 py-2 text-right font-medium text-gray-500">Momentum 5d</th>
+          <th class="px-4 py-2 text-right font-medium text-gray-500">Momentum 20d</th>
+          <th class="px-4 py-2 text-right font-medium text-gray-500">Volatility 20d</th>
+          <th class="px-4 py-2 text-right font-medium text-gray-500">Catalyst</th>
+          <th class="px-4 py-2 text-right font-medium text-gray-500">Total Score</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        <% if @snapshots.empty? %>
+          <tr><td colspan="7" class="px-4 py-4 text-center text-gray-400">No feature snapshots yet.</td></tr>
+        <% else %>
+          <% @snapshots.each do |s| %>
+            <tr>
+              <td class="px-4 py-2"><%= s.as_of_date %></td>
+              <td class="px-4 py-2"><span class="capitalize"><%= s.horizon %></span></td>
+              <td class="px-4 py-2 text-right"><%= s.momentum_5d ? number_with_precision(s.momentum_5d * 100, precision: 2) + "%" : "—" %></td>
+              <td class="px-4 py-2 text-right"><%= s.momentum_20d ? number_with_precision(s.momentum_20d * 100, precision: 2) + "%" : "—" %></td>
+              <td class="px-4 py-2 text-right"><%= s.volatility_20d ? number_with_precision(s.volatility_20d, precision: 4) : "—" %></td>
+              <td class="px-4 py-2 text-right"><%= s.catalyst_score ? number_with_precision(s.catalyst_score, precision: 2) : "—" %></td>
+              <td class="px-4 py-2 text-right font-medium"><%= s.total_score ? number_with_precision(s.total_score, precision: 4) : "—" %></td>
+            </tr>
+          <% end %>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- Predictions -->
+<section class="mb-8">
+  <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Predictions</h2>
+  <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200 text-sm">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-4 py-2 text-left font-medium text-gray-500">Date</th>
+          <th class="px-4 py-2 text-left font-medium text-gray-500">Horizon</th>
+          <th class="px-4 py-2 text-right font-medium text-gray-500">Rank</th>
+          <th class="px-4 py-2 text-right font-medium text-gray-500">Score</th>
+          <th class="px-4 py-2 text-right font-medium text-gray-500">Probability</th>
+          <th class="px-4 py-2 text-left font-medium text-gray-500">Recommendation</th>
+          <th class="px-4 py-2 text-left font-medium text-gray-500">Direction</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        <% if @predictions.empty? %>
+          <tr><td colspan="7" class="px-4 py-4 text-center text-gray-400">No predictions yet.</td></tr>
+        <% else %>
+          <% @predictions.each do |p| %>
+            <tr>
+              <td class="px-4 py-2"><%= p.as_of_date %></td>
+              <td class="px-4 py-2 capitalize"><%= p.horizon %></td>
+              <td class="px-4 py-2 text-right"><%= p.rank_position || "—" %></td>
+              <td class="px-4 py-2 text-right"><%= number_with_precision(p.total_score, precision: 4) %></td>
+              <td class="px-4 py-2 text-right"><%= p.predicted_probability ? number_with_precision(p.predicted_probability * 100, precision: 1) + "%" : "—" %></td>
+              <td class="px-4 py-2">
+                <span class="<%= p.recommendation_type == 'buy' ? 'text-green-700 font-medium' : 'text-gray-500' %>">
+                  <%= p.recommendation_type %>
+                </span>
+              </td>
+              <td class="px-4 py-2"><%= p.predicted_direction %></td>
+            </tr>
+          <% end %>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</section>

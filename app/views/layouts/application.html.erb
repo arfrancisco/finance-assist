@@ -1,16 +1,30 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>FinanceAssist</title>
+    <title>Finance Assist</title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
-
+    <%= stylesheet_link_tag "tailwind", "inter-font", "data-turbo-track": "reload" %>
     <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>
 
-  <body>
-    <%= yield %>
+  <body class="bg-gray-50 text-gray-900">
+    <nav class="bg-white border-b border-gray-200">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center gap-6 h-12">
+          <span class="font-semibold text-gray-700">Finance Assist</span>
+          <%= link_to "Status",      root_path,         class: nav_link_class(root_path) %>
+          <%= link_to "Stocks",      stocks_path,       class: nav_link_class(stocks_path) %>
+          <%= link_to "Prices",      daily_prices_path, class: nav_link_class(daily_prices_path) %>
+          <%= link_to "Disclosures", disclosures_path,  class: nav_link_class(disclosures_path) %>
+        </div>
+      </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <%= yield %>
+    </main>
   </body>
 </html>

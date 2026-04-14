@@ -29,7 +29,7 @@ module Disclosures
 
         # edge_no is in onclick attr: openPopup('abc123...')
         onclick = link["onclick"] || ""
-        edge_no_match = onclick.match(/openPopup\('([a-f0-9]+)'\)/i)
+        edge_no_match = onclick.match(/openPopup\('([a-z0-9]+)'\)/i)
         source_id = edge_no_match ? edge_no_match[1] : nil
         return nil unless source_id
 

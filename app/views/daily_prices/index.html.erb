@@ -1,0 +1,58 @@
+<h1 class="text-xl font-semibold mb-6">Daily Prices</h1>
+
+<%= form_with url: daily_prices_path, method: :get, class: "flex flex-wrap gap-3 mb-6" do |f| %>
+  <%= f.text_field :symbol, value: params[:symbol], placeholder: "Symbol (e.g. ALI)", class: "border border-gray-300 rounded px-3 py-1.5 text-sm w-32" %>
+  <%= f.date_field :from, value: params[:from], class: "border border-gray-300 rounded px-3 py-1.5 text-sm" %>
+  <span class="self-center text-gray-400 text-sm">to</span>
+  <%= f.date_field :to, value: params[:to], class: "border border-gray-300 rounded px-3 py-1.5 text-sm" %>
+  <%= f.submit "Filter", class: "bg-blue-600 text-white rounded px-4 py-1.5 text-sm hover:bg-blue-700 cursor-pointer" %>
+  <% if params[:symbol].present? || params[:from].present? || params[:to].present? %>
+    <%= link_to "Clear", daily_prices_path, class: "text-sm text-gray-500 hover:underline self-center" %>
+  <% end %>
+<% end %>
+
+<div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+  <table class="min-w-full divide-y divide-gray-200 text-sm">
+    <thead class="bg-gray-50">
+      <tr>
+        <th class="px-4 py-3 text-left font-medium text-gray-500">Date</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-500">Symbol</th>
+        <th class="px-4 py-3 text-right font-medium text-gray-500">Open</th>
+        <th class="px-4 py-3 text-right font-medium text-gray-500">High</th>
+        <th class="px-4 py-3 text-right font-medium text-gray-500">Low</th>
+        <th class="px-4 py-3 text-right font-medium text-gray-500">Close</th>
+        <th class="px-4 py-3 text-right font-medium text-gray-500">Adj Close</th>
+        <th class="px-4 py-3 text-right font-medium text-gray-500">Volume</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-500">Source</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-500">Fetched At</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      <% if @prices.empty? %>
+        <tr>
+          <td colspan="10" class="px-4 py-6 text-center text-gray-400">No price data yet.</td>
+        </tr>
+      <% else %>
+        <% @prices.each do |p| %>
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-2 whitespace-nowrap"><%= p.trading_date %></td>
+            <td class="px-4 py-2 font-medium">
+              <%= link_to p.stock.symbol, stock_path(p.stock), class: "text-blue-600 hover:underline" %>
+            </td>
+            <td class="px-4 py-2 text-right"><%= number_with_precision(p.open, precision: 2) %></td>
+            <td class="px-4 py-2 text-right"><%= number_with_precision(p.high, precision: 2) %></td>
+            <td class="px-4 py-2 text-right"><%= number_with_precision(p.low, precision: 2) %></td>
+            <td class="px-4 py-2 text-right font-medium"><%= number_with_precision(p.close, precision: 2) %></td>
+            <td class="px-4 py-2 text-right text-gray-500"><%= p.adjusted_close ? number_with_precision(p.adjusted_close, precision: 2) : "—" %></td>
+            <td class="px-4 py-2 text-right"><%= number_with_delimiter(p.volume) %></td>
+            <td class="px-4 py-2 text-gray-500"><%= p.source %></td>
+            <td class="px-4 py-2 text-gray-400 whitespace-nowrap"><%= p.fetched_at ? l(p.fetched_at, format: :short) : "—" %></td>
+          </tr>
+        <% end %>
+      <% end %>
+    </tbody>
+  </table>
+</div>
+<% if @prices.size == 200 %>
+  <p class="mt-3 text-sm text-gray-400">Showing first 200 results. Use filters to narrow down.</p>
+<% end %>
