@@ -285,8 +285,24 @@ bin/rails finance:compute_features DATE=2024-12-31
 bin/rails finance:score_predictions DATE=2024-12-31
 # Expected: predictions created; top 10 per horizon printed to stdout
 
-# 9. Full test suite
+# 9. Generate LLM reports (requires ANTHROPIC_API_KEY or OPENAI_API_KEY)
+bin/rails finance:generate_reports DATE=2024-12-31 HORIZON=short TOP=3
+# Expected: 3 prediction_reports rows; LLM model and prompt_version recorded
+
+# 10. Verify reports
+bin/rails runner "pp PredictionReport.last.slice(:summary_text, :llm_model, :prompt_version)"
+# Expected: summary_text populated, llm_model = 'claude-opus-4-6' (or gpt-4o), prompt_version = 'v1-llm'
+
+# 11. Evaluate outcomes (needs predictions older than horizon window — skip on fresh data)
+bin/rails finance:evaluate_outcomes
+# Expected: 0 evaluated (no elapsed predictions on fresh data); safe to re-run
+
+# 12. Self-audit (needs evaluated outcomes — skip on fresh data)
+bin/rails finance:self_audit
+# Expected: 0 runs created (not enough data); safe to re-run
+
+# 13. Full test suite
 bin/rspec
-# Expected: 85 examples, 10 failures (10 are pre-existing PSE EDGE parser spec fixtures
+# Expected: 114 examples, 10 failures (10 are pre-existing PSE EDGE parser spec fixtures
 #           that use old HTML — not regressions)
 ```
