@@ -11,6 +11,9 @@ class IngestFundamentalsJob < ApplicationJob
     Stock.where(is_active: true).find_each do |stock|
       total += importer.call(symbol: stock.symbol)
       sleep 0.1
+    rescue Faraday::ForbiddenError
+      Rails.logger.error("[IngestFundamentalsJob] EODHD fundamentals endpoint not available on current plan. Aborting.")
+      break
     rescue => e
       Rails.logger.error("[IngestFundamentalsJob] Error for #{stock.symbol}: #{e.message}")
     end

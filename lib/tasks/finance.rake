@@ -154,6 +154,9 @@ namespace :finance do
       count = importer.call(symbol: stock.symbol)
       total += count
       sleep 0.1
+    rescue Faraday::ForbiddenError
+      puts "Error: EODHD fundamentals endpoint is not available on your current plan. Aborting."
+      break
     rescue => e
       Rails.logger.error("[rake] ingest_fundamentals error for #{stock.symbol}: #{e.message}")
     end
