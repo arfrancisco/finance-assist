@@ -122,15 +122,33 @@ namespace :finance do
     puts "Generated #{total} reports for #{as_of}."
   end
 
-  desc "Evaluate past predictions whose horizon has elapsed (Phase 4)"
+  desc "Evaluate past predictions whose horizon has elapsed (run daily)"
   task evaluate_outcomes: :environment do
-    puts "Outcome evaluation not yet implemented — coming in Phase 4."
-    # TODO Phase 4: Validation::OutcomeEvaluator.new.call
+    Rails.logger.info("[rake] finance:evaluate_outcomes starting")
+    count = Validation::OutcomeEvaluator.new.call
+    puts "Evaluated #{count} predictions."
   end
 
-  desc "Generate weekly self-audit summary (Phase 4)"
+  desc "Retune factor weights from outcome correlations and create a new ModelVersion (run manually)"
+  task retune_weights: :environment do
+    model_name = ENV.fetch("MODEL", "v1")
+    base       = ModelVersion.find_by!(version_name: model_name)
+
+    Rails.logger.info("[rake] finance:retune_weights starting from #{model_name}")
+    new_version = Ranking::WeightTuner.new(base_model_version: base).call
+
+    if new_version
+      puts "Created new model version: #{new_version.version_name}"
+      puts "Run `bin/rails finance:score_predictions MODEL=#{new_version.version_name}` to use it."
+    else
+      puts "No new version created (insufficient data or no meaningful change)."
+    end
+  end
+
+  desc "Generate weekly self-audit summary (run weekly)"
   task self_audit: :environment do
-    puts "Self-audit not yet implemented — coming in Phase 4."
-    # TODO Phase 4: Validation::SelfAudit.new.call
+    Rails.logger.info("[rake] finance:self_audit starting")
+    count = Validation::SelfAudit.new.call
+    puts "Created #{count} self-audit run(s)."
   end
 end

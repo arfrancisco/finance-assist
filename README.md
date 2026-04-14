@@ -114,11 +114,25 @@ bin/rails finance:generate_reports DATE=2024-12-31
 bin/rails finance:generate_reports DATE=2024-12-31 HORIZON=short TOP=5
 ```
 
-### Validation (Phase 4 — not yet implemented)
+### Validation (Phase 4)
 
 ```bash
-bin/rails finance:evaluate_outcomes   # placeholder
-bin/rails finance:self_audit          # placeholder
+# Evaluate predictions whose horizon has elapsed (run daily)
+bin/rails finance:evaluate_outcomes
+
+# Generate weekly self-audit summary
+bin/rails finance:self_audit
+```
+
+### Weight retuning (Phase 5)
+
+```bash
+# Suggest new weights from outcome correlations (run manually when you have enough outcomes)
+bin/rails finance:retune_weights              # defaults to MODEL=v1
+bin/rails finance:retune_weights MODEL=v1
+
+# Then use the new weights for scoring
+bin/rails finance:score_predictions MODEL=v2
 ```
 
 ---
@@ -216,8 +230,8 @@ predictions + feature snapshots + disclosures
 | 1 | ✅ Complete | Scaffold, DB schema, EODHD client, PSE EDGE collector, CLI jobs |
 | 2 | ✅ Complete | Feature engineering (momentum, volatility, RS), factor scoring, ranked predictions |
 | 3 | ✅ Complete | Structured LLM prompt → prediction_reports (Claude/GPT-4o, prompt cached) |
-| 4 | Planned | Outcome evaluator (actual vs predicted returns), self-audit metrics |
-| 5 | Planned | Weight tuning, baselines, optional ML |
+| 4 | ✅ Complete | OutcomeEvaluator (entry/exit vs PSEi), SelfAudit (hit rate, Brier score) |
+| 5 | ✅ Complete | WeightTuner — correlation-based weight retuning → new ModelVersion |
 
 ---
 
