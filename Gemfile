@@ -59,6 +59,7 @@ gem "solid_queue", "~> 0.9"
 
 # GraphQL API
 gem "graphql", "~> 2.3"
+gem "ostruct"
 
 # Environment variables
 gem "dotenv-rails", "~> 3.1"

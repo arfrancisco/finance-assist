@@ -1,3 +1,10 @@
+import { config } from "dotenv";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+config({ path: join(__dirname, ".env") });
+
 const GRAPHQL_URL = `${process.env.FINANCE_ASSIST_URL ?? "http://localhost:3000"}/graphql`;
 const API_KEY = process.env.MCP_API_KEY;
 

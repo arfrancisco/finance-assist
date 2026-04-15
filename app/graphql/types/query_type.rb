@@ -1,3 +1,5 @@
+require "ostruct"
+
 module Types
   class QueryType < Types::BaseObject
     field :stocks, [Types::StockType], null: false do
