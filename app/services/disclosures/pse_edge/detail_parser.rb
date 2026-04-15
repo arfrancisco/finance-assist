@@ -7,15 +7,23 @@ module Disclosures
         @doc = Nokogiri::HTML(html)
       end
 
-      # Returns a hash: { body_text:, attachment_urls: [] }
+      # Returns a hash: { company_name:, body_text:, attachment_urls: [] }
       def parse
         {
+          company_name: extract_company_name,
           body_text: extract_body_text,
           attachment_urls: extract_attachment_urls
         }
       end
 
       private
+
+      def extract_company_name
+        text = @doc.at("body")&.text&.gsub(/\s+/, " ")&.strip
+        return nil if text.blank?
+        # Body text starts with "<Company Name> Disclosure Date : ..."
+        text.split(" Disclosure Date", 2).first&.strip.presence
+      end
 
       def extract_body_text
         # Try common content containers

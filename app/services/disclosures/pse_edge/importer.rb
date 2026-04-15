@@ -55,11 +55,12 @@ module Disclosures
         # Dedup: skip if we already have this disclosure
         return 0 if Disclosure.exists?(source_id: row[:source_id])
 
-        stock = resolve_stock(row[:company_name])
-        return 0 unless stock
-
-        # Fetch detail page for body text and attachment URLs
+        # Fetch detail page for body text, attachment URLs, and company name
         detail = fetch_detail(row)
+
+        company_name = row[:company_name].presence || detail[:company_name]
+        stock = resolve_stock(company_name)
+        return 0 unless stock
 
         disclosure = Disclosure.create!(
           stock: stock,
@@ -93,10 +94,29 @@ module Disclosures
         { body_text: nil, attachment_urls: [] }
       end
 
+      # Strips punctuation and common corporate suffixes so that e.g.
+      # "Manila Electric Company" matches "Manila Electric Co" in the DB.
+      CORP_SUFFIXES = /\b(corporation|incorporated|company|limited|corp|inc|co|ltd|phils?|philippines?)\b\.?/i
+
+      def normalize_name(name)
+        name.downcase
+            .gsub(/[^a-z0-9\s]/, "")
+            .gsub(CORP_SUFFIXES, "")
+            .gsub(/\s+/, " ")
+            .strip
+      end
+
       def resolve_stock(company_name)
         return nil if company_name.blank?
 
+        # Try exact match first
         stock = Stock.find_by("LOWER(company_name) = ?", company_name.downcase)
+        return stock if stock
+
+        # Normalize and compare against all stocks
+        needle = normalize_name(company_name)
+        stock = Stock.all.find { |s| normalize_name(s.company_name) == needle }
+
         unless stock
           Rails.logger.warn("[PseEdgeImporter] Could not match company name to a stock: #{company_name.inspect}")
         end
