@@ -1,0 +1,17 @@
+{
+  "name": "finance-assist-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for finance-assist — read-only access to pipeline data via GraphQL",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "dotenv": "^16.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

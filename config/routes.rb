@@ -10,4 +10,11 @@ Rails.application.routes.draw do
   resources :stocks,       only: [:index, :show]
   resources :daily_prices, only: [:index]
   resources :disclosures,  only: [:index]
+
+  # Read-only GraphQL API (requires Authorization: Bearer <MCP_API_KEY>)
+  post "/graphql", to: "graphql#execute"
+
+  if Rails.env.development?
+    mount GraphiQL::Rails::Engine, at: "/graphiql", graphql_path: "/graphql"
+  end
 end

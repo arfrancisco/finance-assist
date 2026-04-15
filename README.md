@@ -77,6 +77,89 @@ bin/rspec
 | `PSE_EDGE_USER_AGENT` | No | Defaults to `finance-assist-personal/1.0` |
 | `RAW_DATA_DIR` | No | Defaults to `data/raw` |
 | `RAILS_MAX_THREADS` | No | Puma thread count, defaults to 5 |
+| `MCP_API_KEY` | GraphQL/MCP | Bearer token for the `/graphql` endpoint. Generate with `ruby -e "require 'securerandom'; puts SecureRandom.hex(32)"` |
+
+---
+
+---
+
+## GraphQL API & MCP Server
+
+A read-only GraphQL endpoint is available at `POST /graphql`. It exposes all pipeline data (stocks, prices, predictions, reports, audit runs, disclosures) for debugging, monitoring, and direct querying by Claude via MCP.
+
+### Authentication
+
+All requests require a Bearer token:
+
+```
+Authorization: Bearer <MCP_API_KEY>
+```
+
+Set `MCP_API_KEY` in your `.env` (development) and as a Railway environment variable (production). Requests without a valid token receive HTTP 401.
+
+### GraphiQL (development only)
+
+Open `http://localhost:3000/graphiql` in a browser for an interactive query IDE. The API key is injected automatically in development.
+
+### Example queries
+
+```graphql
+# System health
+{ pipelineStatus { stockCount latestPriceDate latestPredictionDate } }
+
+# Top predictions for 20-day horizon
+{ predictions(horizon: "20d", limit: 5) {
+    stock { symbol companyName }
+    rankPosition totalScore recommendationType
+    report { summaryText }
+} }
+
+# Self-audit performance
+{ selfAuditRuns(horizon: "20d", limit: 3) {
+    runDate hitRate avgReturn brierScore summaryText
+} }
+```
+
+### Local MCP server
+
+A local Node.js MCP server (`mcp-server/`) wraps the GraphQL queries as tools so Claude Code can query live pipeline data directly.
+
+**Setup:**
+
+```bash
+cd mcp-server
+cp .env.example .env
+# Fill in FINANCE_ASSIST_URL and MCP_API_KEY (same value as set on the server)
+npm install
+```
+
+**Register with Claude** — add to `~/.claude.json`:
+
+```json
+{
+  "mcpServers": {
+    "finance-assist": {
+      "command": "node",
+      "args": ["/absolute/path/to/finance-assist/mcp-server/index.js"]
+    }
+  }
+}
+```
+
+Restart Claude Code and verify the server appears under `/mcp`.
+
+**Available MCP tools:**
+
+| Tool | Description |
+|------|-------------|
+| `get_pipeline_status` | Last sync times, record counts per table |
+| `list_stocks` | Active stocks (optional sector filter) |
+| `get_stock` | Single stock detail — prices, snapshot, predictions, disclosures |
+| `get_top_predictions` | Top-ranked stocks for a given horizon and date |
+| `get_self_audit` | Accuracy metrics by horizon |
+| `search_disclosures` | Recent corporate filings |
+
+**Server-side (Railway):** Add `MCP_API_KEY` to the Railway Variables tab with the same value used in `mcp-server/.env`. No other new variables are needed.
 
 ---
 
@@ -249,6 +332,7 @@ predictions + feature snapshots + disclosures
 | 3 | ✅ Complete | Structured LLM prompt → prediction_reports (Claude/GPT-4o, prompt cached) |
 | 4 | ✅ Complete | OutcomeEvaluator (entry/exit vs PSEi), SelfAudit (hit rate, Brier score) |
 | 5 | ✅ Complete | WeightTuner — correlation-based weight retuning → new ModelVersion |
+| 6 | ✅ Complete | Read-only GraphQL API + MCP server for Claude access |
 | UI | 🔄 In progress | Ingestion inspector (Status, Stocks, Prices, Disclosures); Features/Predictions/Reports planned |
 
 ---
@@ -264,6 +348,8 @@ A simple read-only internal UI for verifying that the pipeline is working.
 | `/stocks/:id` | Stock detail — prices, disclosures, snapshots, predictions |
 | `/daily_prices` | Price browser with symbol + date range filters |
 | `/disclosures` | Disclosure browser with symbol filter |
+| `POST /graphql` | Read-only GraphQL API (requires `Authorization: Bearer <MCP_API_KEY>`) |
+| `/graphiql` | GraphQL IDE — development only |
 
 Run with `bin/dev` in development (starts Rails + Tailwind CSS watcher).
 

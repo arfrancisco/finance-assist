@@ -43,5 +43,9 @@
 # Ignore master key for decrypting credentials and more.
 /config/master.key
 
+# MCP server local secrets and dependencies (never commit)
+/mcp-server/.env
+/mcp-server/node_modules/
+
 /app/assets/builds/*
 !/app/assets/builds/.keep

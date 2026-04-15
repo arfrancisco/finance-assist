@@ -36,6 +36,31 @@ app/services/
 └── validation/
     ├── outcome_evaluator.rb               # Entry/exit prices vs PSEi → prediction_outcomes (Phase 4)
     └── self_audit.rb                      # Hit rate, Brier score, excess return → self_audit_runs (Phase 4)
+
+app/graphql/                               # Read-only GraphQL API (Phase 6)
+├── finance_assist_schema.rb               # Root schema (no mutations, max_depth 10)
+└── types/
+    ├── query_type.rb                      # Root query fields
+    ├── stock_type.rb                      # Stock + nested prices/predictions/disclosures/snapshot
+    ├── daily_price_type.rb
+    ├── disclosure_type.rb
+    ├── feature_snapshot_type.rb
+    ├── prediction_type.rb                 # + nested report/outcome
+    ├── prediction_report_type.rb
+    ├── prediction_outcome_type.rb
+    ├── self_audit_run_type.rb
+    └── pipeline_status_type.rb            # OpenStruct-backed system health
+
+mcp-server/                                # Local Node.js MCP server (Phase 6)
+├── index.js                               # MCP stdio transport, tool registry
+├── graphql-client.js                      # Authenticated fetch → POST /graphql
+└── tools/
+    ├── get_pipeline_status.js
+    ├── list_stocks.js
+    ├── get_stock.js
+    ├── get_top_predictions.js
+    ├── get_self_audit.js
+    └── search_disclosures.js
 ```
 
 ## Data flow
@@ -75,6 +100,16 @@ PSE EDGE
   Run finance:score_predictions MODEL=v2 to use new weights going forward
 ```
 
+```
+[Phase 6 — External access, read-only]
+  Claude Code (local)
+    → MCP stdio transport → mcp-server/index.js
+    → POST /graphql + Authorization: Bearer <MCP_API_KEY>
+    → GraphqlController (401 if key missing/wrong)
+    → FinanceAssistSchema (read-only, no mutations, max_depth 10)
+    → PostgreSQL (same DB, read-only queries)
+```
+
 ## Key design decisions
 
 | Decision | Rationale |
@@ -90,6 +125,8 @@ PSE EDGE
 | Z-score normalization in Scorer | Cross-stock feature comparison is scale-independent |
 | Per-horizon factor weights | 5d/20d/60d horizons weight momentum vs. value differently |
 | WeightTuner is advisory | Creates a new ModelVersion but doesn't auto-switch — explicit `MODEL=v2` opt-in |
+| GraphQL over REST for MCP | Single endpoint, self-describing schema, flexible field selection — Claude can request exactly what it needs |
+| MCP server runs locally (stdio) | Secrets stay on the local machine; the remote endpoint is protected by API key; no server-to-server auth complexity |
 
 ## Portability (Railway → Render)
 
