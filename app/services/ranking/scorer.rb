@@ -34,7 +34,7 @@ module Ranking
 
     # Score a batch of snapshots. Normalizes features across the batch per horizon
     # so cross-stock comparisons are meaningful.
-    # Returns an array of Predictions (skips existing ones).
+    # Returns an array of Predictions (upserts — safe to rerun).
     def call_batch(feature_snapshots:)
       return [] if feature_snapshots.empty?
 
@@ -68,16 +68,8 @@ module Ranking
     private
 
     # Compute score for a snapshot in memory — no DB writes.
-    # Returns a hash of prediction attributes, or nil if already scored.
+    # Returns a hash of prediction attributes.
     def compute_score(snapshot, weights, stats)
-      # Skip if already scored for this combination
-      return nil if Prediction.exists?(
-        stock_id:         snapshot.stock_id,
-        as_of_date:       snapshot.as_of_date,
-        horizon:          snapshot.horizon,
-        model_version_id: @model_version.id
-      )
-
       total = 0.0
       weights.each do |feature, weight|
         raw = snapshot.public_send(feature)&.to_f
@@ -126,9 +118,24 @@ module Ranking
     end
 
     def persist_prediction(attrs)
-      Prediction.create!(attrs)
-    rescue ActiveRecord::RecordInvalid => e
-      Rails.logger.error("[Scorer] Failed to create prediction for stock_id=#{attrs[:stock_id]}: #{e.message}")
+      # Idempotent on (stock_id, as_of_date, horizon, model_version_id) via upsert
+      Prediction.upsert(
+        attrs,
+        unique_by: [ :stock_id, :as_of_date, :horizon, :model_version_id ],
+        update_only: %i[
+          total_score confidence predicted_direction recommendation_type
+          predicted_probability expected_return_min expected_return_max
+          rank_position feature_version benchmark_symbol
+        ]
+      )
+      Prediction.find_by(
+        stock_id:         attrs[:stock_id],
+        as_of_date:       attrs[:as_of_date],
+        horizon:          attrs[:horizon],
+        model_version_id: attrs[:model_version_id]
+      )
+    rescue => e
+      Rails.logger.error("[Scorer] Failed to upsert prediction for stock_id=#{attrs[:stock_id]}: #{e.message}")
       nil
     end
 

@@ -11,6 +11,7 @@ module Validation
     HORIZON_DAYS = { "5d" => 5, "20d" => 20, "60d" => 60 }.freeze
     PSEI_SYMBOL  = "PSEI".freeze
 
+    # Idempotent on prediction_id via left-join guard + DB unique constraint on prediction_outcomes.prediction_id
     def call
       psei_stock = Stock.find_by(symbol: PSEI_SYMBOL)
       evaluated  = 0

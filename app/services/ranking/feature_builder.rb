@@ -13,6 +13,7 @@ module Ranking
     end
 
     # Returns the upserted FeatureSnapshot, or nil if insufficient data.
+    # Idempotent on (stock_id, as_of_date, horizon) via upsert
     def call
       prices = load_prices
       if prices.size < MIN_PRICES

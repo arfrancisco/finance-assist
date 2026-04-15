@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_04_14_000002) do
+ActiveRecord::Schema[7.1].define(version: 2026_04_15_000002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -172,6 +172,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_14_000002) do
     t.datetime "created_at", null: false
     t.index ["as_of_date", "horizon"], name: "index_predictions_on_as_of_date_and_horizon"
     t.index ["model_version_id"], name: "index_predictions_on_model_version_id"
+    t.index ["stock_id", "as_of_date", "horizon", "model_version_id"], name: "index_predictions_unique", unique: true
     t.index ["stock_id", "as_of_date", "horizon"], name: "index_predictions_on_stock_id_and_as_of_date_and_horizon"
     t.index ["stock_id"], name: "index_predictions_on_stock_id"
   end
@@ -200,6 +201,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_14_000002) do
     t.datetime "created_at", null: false
     t.jsonb "metrics_json"
     t.index ["run_date", "horizon"], name: "index_self_audit_runs_on_run_date_and_horizon"
+    t.index ["run_date", "horizon"], name: "index_self_audit_runs_unique", unique: true
   end
 
   create_table "stocks", force: :cascade do |t|

@@ -21,6 +21,7 @@ module Validation
     MIN_SAMPLE = 5
     LOOKBACK_DAYS = 90
 
+    # Idempotent on (run_date, horizon) via upsert
     def call
       runs_created = 0
 
@@ -35,17 +36,25 @@ module Validation
         metrics = compute_metrics(outcomes)
         run     = build_run(horizon, outcomes.size, metrics)
 
-        SelfAuditRun.create!(
-          run_date:          Date.today,
-          horizon:           horizon,
-          sample_size:       outcomes.size,
-          hit_rate:          run[:hit_rate].round(6),
-          avg_return:        run[:avg_return].round(6),
-          avg_excess_return: run[:avg_excess_return].round(6),
-          brier_score:       run[:brier_score].round(6),
-          summary_text:      run[:summary_text],
-          calibration_notes: run[:calibration_notes],
-          metrics_json:      run[:metrics_json]
+        # Idempotent on (run_date, horizon) via upsert
+        SelfAuditRun.upsert(
+          {
+            run_date:          Date.today,
+            horizon:           horizon,
+            sample_size:       outcomes.size,
+            hit_rate:          run[:hit_rate].round(6),
+            avg_return:        run[:avg_return].round(6),
+            avg_excess_return: run[:avg_excess_return].round(6),
+            brier_score:       run[:brier_score].round(6),
+            summary_text:      run[:summary_text],
+            calibration_notes: run[:calibration_notes],
+            metrics_json:      run[:metrics_json]
+          },
+          unique_by: [ :run_date, :horizon ],
+          update_only: %i[
+            sample_size hit_rate avg_return avg_excess_return brier_score
+            summary_text calibration_notes metrics_json
+          ]
         )
 
         runs_created += 1

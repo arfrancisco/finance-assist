@@ -19,6 +19,7 @@ module Disclosures
         @pages = pages
       end
 
+      # Idempotent on source_id via exists? guard before create!
       def call
         imported = 0
 

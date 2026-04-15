@@ -54,9 +54,9 @@ RSpec.describe Disclosures::PseEdge::Importer do
       expect { importer.call }.not_to change(Disclosure, :count)
     end
 
-    it "triggers attachment download for new disclosures" do
+    it "does not trigger attachment downloads (skipped to conserve request budget)" do
       importer.call
-      expect(downloader).to have_received(:call).once
+      expect(downloader).not_to have_received(:call)
     end
 
     it "stores the source_id on the disclosure" do

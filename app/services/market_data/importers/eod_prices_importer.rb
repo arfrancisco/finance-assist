@@ -8,6 +8,7 @@ module MarketData
       end
 
       # Import prices for a single symbol over a date range.
+      # Idempotent on (stock_id, trading_date) via upsert_all
       def call(symbol:, from:, to: Date.today)
         stock = Stock.find_by(symbol: symbol.upcase)
         unless stock
@@ -23,6 +24,7 @@ module MarketData
 
       # Import the latest trading day's prices for all active stocks.
       # Uses the bulk endpoint — 1 API call for the entire exchange.
+      # Idempotent on (stock_id, trading_date) via upsert_all
       def call_all(date: nil)
         bulk_rows = @provider.fetch_bulk_eod_prices(date: date)
         return 0 if bulk_rows.blank?
