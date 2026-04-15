@@ -99,6 +99,8 @@ module Disclosures
 
       def normalize_name(name)
         name.downcase
+            .gsub(/&/, "and")          # & → and (e.g. "Synergy Grid & Development")
+            .gsub(/-/, " ")            # hyphen → space (e.g. "ABS-CBN")
             .gsub(/[^a-z0-9\s]/, "")
             .gsub(CORP_SUFFIXES, "")
             .gsub(/\s+/, " ")
@@ -108,13 +110,24 @@ module Disclosures
       def resolve_stock(company_name)
         return nil if company_name.blank?
 
-        # Try exact match first
+        # Tier 1: exact DB match
         stock = Stock.find_by("LOWER(company_name) = ?", company_name.downcase)
         return stock if stock
 
-        # Normalize and compare against all stocks
+        # Tier 2: pse_edge_names alias match
+        stock = Stock.find_by("? = ANY(pse_edge_names)", company_name)
+        return stock if stock
+
+        # Tier 3: normalized name match, including substring containment
+        # Handles cases where one side has extra words (e.g. "Philippine Business Bank"
+        # vs "Philippine Business Bank Inc A Savings Bank")
         needle = normalize_name(company_name)
-        stock = Stock.all.find { |s| normalize_name(s.company_name) == needle }
+        stock = Stock.all.find do |s|
+          haystack = normalize_name(s.company_name)
+          haystack == needle ||
+            haystack.start_with?(needle) ||
+            needle.start_with?(haystack)
+        end
 
         unless stock
           Rails.logger.warn("[PseEdgeImporter] Could not match company name to a stock: #{company_name.inspect}")
