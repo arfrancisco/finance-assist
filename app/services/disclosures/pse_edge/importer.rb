@@ -73,10 +73,8 @@ module Disclosures
           fetched_at: Time.current
         )
 
-        # Download attachments only for new disclosures
-        if detail[:attachment_urls].any?
-          @downloader.call(disclosure: disclosure, attachment_urls: detail[:attachment_urls])
-        end
+        # Attachment downloading is intentionally skipped — PDFs are large and
+        # consume the per-run request cap. Body text from the detail page is sufficient.
 
         1
       rescue => e

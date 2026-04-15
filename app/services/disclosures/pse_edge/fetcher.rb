@@ -14,8 +14,8 @@ module Disclosures
     # All fetched pages are saved to disk and recorded in raw_artifacts.
     class Fetcher
       BASE_URL = "https://edge.pse.com.ph".freeze
-      MIN_DELAY_SECONDS = 2.freeze
-      DEFAULT_PER_RUN_CAP = 50.freeze
+      MIN_DELAY_SECONDS = 3.freeze
+      DEFAULT_PER_RUN_CAP = 150.freeze
 
       def initialize(
         user_agent: ENV.fetch("PSE_EDGE_USER_AGENT", "finance-assist-personal/1.0 (personal research tool)"),
