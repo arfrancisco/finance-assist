@@ -42,7 +42,7 @@
   </div>
 </section>
 
-<!-- Recent Disclosures -->
+<!-- Recent Disclosures — titles link to internal detail page which shows body_text -->
 <section class="mb-8">
   <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Recent Disclosures</h2>
   <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -63,10 +63,11 @@
               <td class="px-4 py-2 whitespace-nowrap"><%= d.disclosure_date %></td>
               <td class="px-4 py-2 text-gray-500 whitespace-nowrap"><%= d.disclosure_type %></td>
               <td class="px-4 py-2">
+                <%= link_to d.title, disclosure_path(d), class: "text-blue-600 hover:underline" %>
                 <% if d.source_url.present? %>
-                  <%= link_to d.title, d.source_url, target: "_blank", class: "text-blue-600 hover:underline" %>
-                <% else %>
-                  <%= d.title %>
+                  <%= link_to "↗", d.source_url, target: "_blank",
+                        class: "ml-1 text-gray-400 hover:text-blue-500 text-xs",
+                        title: "View on PSE EDGE" %>
                 <% end %>
               </td>
             </tr>
@@ -77,34 +78,46 @@
   </div>
 </section>
 
-<!-- Feature Snapshots -->
+<%# Feature Snapshots — all 13 factor columns shown; table scrolls horizontally on small screens %>
 <section class="mb-8">
   <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Feature Snapshots</h2>
-  <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+  <div class="bg-white rounded-lg border border-gray-200 overflow-x-auto">
     <table class="min-w-full divide-y divide-gray-200 text-sm">
       <thead class="bg-gray-50">
         <tr>
           <th class="px-4 py-2 text-left font-medium text-gray-500">Date</th>
           <th class="px-4 py-2 text-left font-medium text-gray-500">Horizon</th>
-          <th class="px-4 py-2 text-right font-medium text-gray-500">Momentum 5d</th>
-          <th class="px-4 py-2 text-right font-medium text-gray-500">Momentum 20d</th>
-          <th class="px-4 py-2 text-right font-medium text-gray-500">Volatility 20d</th>
+          <th class="px-4 py-2 text-right font-medium text-gray-500">Mom 5d</th>
+          <th class="px-4 py-2 text-right font-medium text-gray-500">Mom 20d</th>
+          <th class="px-4 py-2 text-right font-medium text-gray-500">Mom 60d</th>
+          <th class="px-4 py-2 text-right font-medium text-gray-500">Volatility</th>
+          <th class="px-4 py-2 text-right font-medium text-gray-500">Rel Strength</th>
+          <th class="px-4 py-2 text-right font-medium text-gray-500">Valuation</th>
+          <th class="px-4 py-2 text-right font-medium text-gray-500">Quality</th>
+          <th class="px-4 py-2 text-right font-medium text-gray-500">Liquidity</th>
           <th class="px-4 py-2 text-right font-medium text-gray-500">Catalyst</th>
+          <th class="px-4 py-2 text-right font-medium text-gray-500">Risk</th>
           <th class="px-4 py-2 text-right font-medium text-gray-500">Total Score</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-gray-100">
         <% if @snapshots.empty? %>
-          <tr><td colspan="7" class="px-4 py-4 text-center text-gray-400">No feature snapshots yet.</td></tr>
+          <tr><td colspan="13" class="px-4 py-4 text-center text-gray-400">No feature snapshots yet.</td></tr>
         <% else %>
           <% @snapshots.each do |s| %>
             <tr>
-              <td class="px-4 py-2"><%= s.as_of_date %></td>
+              <td class="px-4 py-2 whitespace-nowrap"><%= s.as_of_date %></td>
               <td class="px-4 py-2"><span class="capitalize"><%= s.horizon %></span></td>
-              <td class="px-4 py-2 text-right"><%= s.momentum_5d ? number_with_precision(s.momentum_5d * 100, precision: 2) + "%" : "—" %></td>
+              <td class="px-4 py-2 text-right"><%= s.momentum_5d  ? number_with_precision(s.momentum_5d  * 100, precision: 2) + "%" : "—" %></td>
               <td class="px-4 py-2 text-right"><%= s.momentum_20d ? number_with_precision(s.momentum_20d * 100, precision: 2) + "%" : "—" %></td>
-              <td class="px-4 py-2 text-right"><%= s.volatility_20d ? number_with_precision(s.volatility_20d, precision: 4) : "—" %></td>
-              <td class="px-4 py-2 text-right"><%= s.catalyst_score ? number_with_precision(s.catalyst_score, precision: 2) : "—" %></td>
+              <td class="px-4 py-2 text-right"><%= s.momentum_60d ? number_with_precision(s.momentum_60d * 100, precision: 2) + "%" : "—" %></td>
+              <td class="px-4 py-2 text-right"><%= s.volatility_20d   ? number_with_precision(s.volatility_20d,   precision: 4) : "—" %></td>
+              <td class="px-4 py-2 text-right"><%= s.relative_strength ? number_with_precision(s.relative_strength, precision: 4) : "—" %></td>
+              <td class="px-4 py-2 text-right"><%= s.valuation_score  ? number_with_precision(s.valuation_score,  precision: 2) : "—" %></td>
+              <td class="px-4 py-2 text-right"><%= s.quality_score    ? number_with_precision(s.quality_score,    precision: 2) : "—" %></td>
+              <td class="px-4 py-2 text-right"><%= s.liquidity_score  ? number_with_precision(s.liquidity_score,  precision: 2) : "—" %></td>
+              <td class="px-4 py-2 text-right"><%= s.catalyst_score   ? number_with_precision(s.catalyst_score,   precision: 2) : "—" %></td>
+              <td class="px-4 py-2 text-right"><%= s.risk_score       ? number_with_precision(s.risk_score,       precision: 2) : "—" %></td>
               <td class="px-4 py-2 text-right font-medium"><%= s.total_score ? number_with_precision(s.total_score, precision: 4) : "—" %></td>
             </tr>
           <% end %>
@@ -114,7 +127,7 @@
   </div>
 </section>
 
-<!-- Predictions -->
+<%# Predictions — each row expands to show the AI-generated report if one exists %>
 <section class="mb-8">
   <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Predictions</h2>
   <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -126,31 +139,87 @@
           <th class="px-4 py-2 text-right font-medium text-gray-500">Rank</th>
           <th class="px-4 py-2 text-right font-medium text-gray-500">Score</th>
           <th class="px-4 py-2 text-right font-medium text-gray-500">Probability</th>
-          <th class="px-4 py-2 text-left font-medium text-gray-500">Recommendation</th>
+          <th class="px-4 py-2 text-left font-medium text-gray-500">Signal</th>
           <th class="px-4 py-2 text-left font-medium text-gray-500">Direction</th>
+          <th class="px-4 py-2 text-center font-medium text-gray-500">Report</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-gray-100">
         <% if @predictions.empty? %>
-          <tr><td colspan="7" class="px-4 py-4 text-center text-gray-400">No predictions yet.</td></tr>
+          <tr><td colspan="8" class="px-4 py-4 text-center text-gray-400">No predictions yet.</td></tr>
         <% else %>
           <% @predictions.each do |p| %>
-            <tr>
-              <td class="px-4 py-2"><%= p.as_of_date %></td>
+            <%# Row is clickable to toggle the report panel below it %>
+            <tr class="hover:bg-gray-50 <%= p.prediction_report ? 'cursor-pointer' : '' %>"
+                <%= p.prediction_report ? "onclick=\"this.nextElementSibling.classList.toggle('hidden')\"" : "" %>>
+              <td class="px-4 py-2 whitespace-nowrap"><%= p.as_of_date %></td>
               <td class="px-4 py-2 capitalize"><%= p.horizon %></td>
               <td class="px-4 py-2 text-right"><%= p.rank_position || "—" %></td>
-              <td class="px-4 py-2 text-right"><%= number_with_precision(p.total_score, precision: 4) %></td>
+              <td class="px-4 py-2 text-right font-mono"><%= number_with_precision(p.total_score, precision: 4) %></td>
               <td class="px-4 py-2 text-right"><%= p.predicted_probability ? number_with_precision(p.predicted_probability * 100, precision: 1) + "%" : "—" %></td>
               <td class="px-4 py-2">
-                <span class="<%= p.recommendation_type == 'buy' ? 'text-green-700 font-medium' : 'text-gray-500' %>">
-                  <%= p.recommendation_type %>
+                <% badge_class = case p.recommendation_type
+                                 when "buy"       then "bg-green-100 text-green-700"
+                                 when "sell"      then "bg-red-100 text-red-600"
+                                 when "watchlist" then "bg-yellow-100 text-yellow-700"
+                                 else                  "bg-gray-100 text-gray-500"
+                                 end %>
+                <span class="px-2 py-0.5 rounded-full text-xs font-medium <%= badge_class %>">
+                  <%= p.recommendation_type&.capitalize || "—" %>
                 </span>
               </td>
-              <td class="px-4 py-2"><%= p.predicted_direction %></td>
+              <td class="px-4 py-2 text-gray-600"><%= p.predicted_direction&.capitalize %></td>
+              <td class="px-4 py-2 text-center">
+                <% if p.prediction_report %>
+                  <span class="text-blue-400" title="Click row to expand report">📄</span>
+                <% else %>
+                  <span class="text-gray-300">—</span>
+                <% end %>
+              </td>
+            </tr>
+
+            <%# Expandable AI report panel — hidden by default, toggled on row click %>
+            <tr class="hidden bg-blue-50">
+              <td colspan="8" class="px-6 py-5">
+                <% if p.prediction_report %>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <% if p.prediction_report.summary_text.present? %>
+                      <div class="md:col-span-2">
+                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Summary</p>
+                        <p class="text-gray-700"><%= p.prediction_report.summary_text %></p>
+                      </div>
+                    <% end %>
+                    <% if p.prediction_report.catalyst_text.present? %>
+                      <div>
+                        <p class="text-xs font-semibold text-green-600 uppercase tracking-wide mb-1">Catalyst</p>
+                        <p class="text-gray-700"><%= p.prediction_report.catalyst_text %></p>
+                      </div>
+                    <% end %>
+                    <% if p.prediction_report.risk_text.present? %>
+                      <div>
+                        <p class="text-xs font-semibold text-red-500 uppercase tracking-wide mb-1">Risk</p>
+                        <p class="text-gray-700"><%= p.prediction_report.risk_text %></p>
+                      </div>
+                    <% end %>
+                    <% if p.prediction_report.rationale_text.present? %>
+                      <div class="md:col-span-2">
+                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Rationale</p>
+                        <p class="text-gray-600 text-xs"><%= p.prediction_report.rationale_text %></p>
+                      </div>
+                    <% end %>
+                    <div class="md:col-span-2 text-xs text-gray-400 pt-1 border-t border-blue-100">
+                      Model: <%= p.prediction_report.llm_model %> · Prompt v<%= p.prediction_report.prompt_version %>
+                    </div>
+                  </div>
+                <% end %>
+              </td>
             </tr>
           <% end %>
         <% end %>
       </tbody>
     </table>
   </div>
+  <% if @predictions.any?(&:prediction_report) %>
+    <p class="mt-2 text-xs text-gray-400">Click a row with 📄 to expand the AI-generated report.</p>
+  <% end %>
 </section>

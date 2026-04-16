@@ -21,6 +21,7 @@ class StocksController < ApplicationController
     @latest_prices = @stock.daily_prices.order(trading_date: :desc).limit(10)
     @disclosures   = @stock.disclosures.order(disclosure_date: :desc).limit(10)
     @snapshots     = @stock.feature_snapshots.order(as_of_date: :desc).limit(9)
-    @predictions   = @stock.predictions.order(as_of_date: :desc).limit(9)
+    # includes(:prediction_report) prevents N+1 when rendering inline report panels
+    @predictions   = @stock.predictions.order(as_of_date: :desc).limit(9).includes(:prediction_report)
   end
 end

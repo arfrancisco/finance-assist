@@ -6,4 +6,8 @@ class DisclosuresController < ApplicationController
 
     @disclosures = @disclosures.limit(200)
   end
+
+  def show
+    @disclosure = Disclosure.includes(:stock).find(params[:id])
+  end
 end

@@ -37,6 +37,24 @@ app/services/
     ├── outcome_evaluator.rb               # Entry/exit prices vs PSEi → prediction_outcomes (Phase 4)
     └── self_audit.rb                      # Hit rate, Brier score, excess return → self_audit_runs (Phase 4)
 
+app/controllers/
+├── dashboard_controller.rb                # GET /          — system status + cached counts
+├── stocks_controller.rb                   # GET /stocks    — correlated-subquery listing; GET /stocks/:id — detail
+├── daily_prices_controller.rb             # GET /daily_prices — filterable price history
+├── disclosures_controller.rb              # GET /disclosures + GET /disclosures/:id (body_text detail)
+├── predictions_controller.rb             # GET /predictions — top-ranked by horizon/date with AI reports
+└── self_audits_controller.rb             # GET /self_audits — model accuracy audit history
+
+app/views/
+├── dashboard/index.html.erb               # Counts + sync timestamps
+├── stocks/index.html.erb                  # Stocks table (correlated subqueries for counts/latest price)
+├── stocks/show.html.erb                   # Prices, disclosures, full factor snapshots, predictions + inline reports
+├── daily_prices/index.html.erb            # Filterable price list
+├── disclosures/index.html.erb             # Disclosure list (titles link to internal show page)
+├── disclosures/show.html.erb              # Full disclosure body_text + metadata
+├── predictions/index.html.erb             # Top-10 per horizon/date with expandable AI reports
+└── self_audits/index.html.erb             # Audit run history table or empty state
+
 app/graphql/                               # Read-only GraphQL API (Phase 6)
 ├── finance_assist_schema.rb               # Root schema (no mutations, max_depth 10)
 └── types/
@@ -129,6 +147,9 @@ PSE EDGE
 | MCP server runs locally (stdio) | Secrets stay on the local machine; the remote endpoint is protected by API key; no server-to-server auth complexity |
 | Stocks index uses correlated subqueries | After backfilling 300k+ price rows, `includes` loaded the full table into Ruby memory. Correlated subqueries compute counts and latest price in SQL, backed by the `(stock_id, trading_date)` unique index. |
 | Dashboard counts cached via `Rails.cache` | Full-table COUNTs on large tables are expensive. Counts are cached for 5 minutes; freshness indicators (`maximum(:fetched_at/trading_date)`) are left uncached since stale sync timestamps would be misleading. |
+| Predictions page filtered by horizon + date | 789 predictions across 3 horizons — a single unscoped view would be noisy. Horizon tabs + date selector let users drill in. Rows expand to show AI report without a separate detail page. |
+| Disclosure detail page for body_text | PSE EDGE disclosures have full body text stored in DB but it was never surfaced. A `/disclosures/:id` show page renders it; the index title links there (with a secondary ↗ to PSE EDGE). |
+| Self audits page with empty state | No audit data yet (outcomes require elapsed horizons). Page renders a descriptive empty state and shows the rake command to run; table appears once data exists. |
 
 ## Portability (Railway → Render)
 

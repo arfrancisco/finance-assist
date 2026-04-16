@@ -9,7 +9,9 @@ Rails.application.routes.draw do
 
   resources :stocks,       only: [:index, :show]
   resources :daily_prices, only: [:index]
-  resources :disclosures,  only: [:index]
+  resources :disclosures,  only: [:index, :show]
+  resources :predictions,  only: [:index]
+  resources :self_audits,  only: [:index]
 
   # Read-only GraphQL API (requires Authorization: Bearer <MCP_API_KEY>)
   post "/graphql", to: "graphql#execute"

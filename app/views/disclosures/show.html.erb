@@ -1,0 +1,48 @@
+<%# Disclosure detail page — shows full body_text fetched from PSE EDGE.
+    Linked from the disclosures index (title column). %>
+
+<div class="mb-6">
+  <%= link_to "← Back to Disclosures", disclosures_path(symbol: @disclosure.stock.symbol),
+        class: "text-sm text-blue-600 hover:underline" %>
+</div>
+
+<div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+  <%# Header metadata %>
+  <div class="flex items-start justify-between gap-4 mb-4">
+    <div>
+      <h1 class="text-lg font-semibold text-gray-900 mb-1"><%= @disclosure.title %></h1>
+      <div class="flex flex-wrap items-center gap-3 text-sm text-gray-500">
+        <span>
+          <%= link_to @disclosure.stock.symbol, stock_path(@disclosure.stock),
+                class: "font-medium text-blue-600 hover:underline" %>
+          · <%= @disclosure.stock.company_name %>
+        </span>
+        <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs"><%= @disclosure.disclosure_type %></span>
+        <span><%= @disclosure.disclosure_date&.strftime("%B %d, %Y") %></span>
+      </div>
+    </div>
+    <% if @disclosure.source_url.present? %>
+      <%= link_to "View on PSE EDGE →", @disclosure.source_url,
+            target: "_blank",
+            class: "shrink-0 text-sm text-blue-600 hover:underline whitespace-nowrap" %>
+    <% end %>
+  </div>
+
+  <%# Divider %>
+  <hr class="border-gray-100 mb-5">
+
+  <%# Full disclosure body %>
+  <% if @disclosure.body_text.present? %>
+    <div class="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap leading-relaxed">
+      <%= @disclosure.body_text %>
+    </div>
+  <% else %>
+    <p class="text-gray-400 italic">No body text available for this disclosure.</p>
+  <% end %>
+</div>
+
+<%# Footer metadata %>
+<p class="text-xs text-gray-400">
+  Source ID: <%= @disclosure.source_id || "—" %> ·
+  Fetched: <%= @disclosure.fetched_at ? l(@disclosure.fetched_at, format: :short) : "—" %>
+</p>
