@@ -14,6 +14,33 @@ namespace :finance do
     puts "Upserted #{count} price rows."
   end
 
+  desc "Backfill historical prices for ALL active stocks over a date range (FROM=2020-01-01 TO=2026-04-16)"
+  task backfill_all_prices: :environment do
+    from = ENV.fetch("FROM") { abort "Usage: bin/rails finance:backfill_all_prices FROM=2020-01-01 TO=2026-04-16" }
+    to   = ENV.fetch("TO", Date.today.to_s)
+
+    from_date = Date.parse(from)
+    to_date   = Date.parse(to)
+
+    stocks = Stock.where(is_active: true).where.not(symbol: "PSEI")
+    Rails.logger.info("[rake] finance:backfill_all_prices #{from_date}..#{to_date} for #{stocks.count} stocks")
+    puts "Backfilling #{stocks.count} stocks from #{from_date} to #{to_date}..."
+
+    importer = MarketData::Importers::EodPricesImporter.new
+    total    = 0
+
+    stocks.find_each do |stock|
+      count = importer.call(symbol: stock.symbol, from: from_date, to: to_date)
+      total += count
+      puts "  #{stock.symbol}: #{count} rows"
+    rescue => e
+      Rails.logger.error("[rake] backfill_all_prices error for #{stock.symbol}: #{e.message}")
+      puts "  #{stock.symbol}: ERROR — #{e.message}"
+    end
+
+    puts "Done. Total rows upserted: #{total}"
+  end
+
   desc "Backfill historical prices for a single symbol (SYMBOL=ALI FROM=2020-01-01 TO=2024-12-31)"
   task backfill_prices: :environment do
     symbol = ENV.fetch("SYMBOL") { abort "Usage: bin/rails finance:backfill_prices SYMBOL=ALI FROM=2020-01-01 TO=2024-12-31" }
@@ -29,10 +56,18 @@ namespace :finance do
     puts "Upserted #{count} price rows for #{symbol}."
   end
 
-  desc "Fetch latest PSE EDGE disclosures (run daily)"
+  desc "Fetch latest PSE EDGE disclosures (run daily; use PAGES=2 default, or higher for backfill)"
   task ingest_pse_edge: :environment do
     pages = ENV.fetch("PAGES", "2").to_i
     Rails.logger.info("[rake] finance:ingest_pse_edge starting (#{pages} page(s))")
+    count = Disclosures::PseEdge::Importer.new(pages: pages).call
+    puts "Imported #{count} new disclosures."
+  end
+
+  desc "Backfill historical PSE EDGE disclosures — paginates until no rows returned (PAGES=500 default)"
+  task backfill_disclosures: :environment do
+    pages = ENV.fetch("PAGES", "500").to_i
+    Rails.logger.info("[rake] finance:backfill_disclosures starting (up to #{pages} page(s))")
     count = Disclosures::PseEdge::Importer.new(pages: pages).call
     puts "Imported #{count} new disclosures."
   end
