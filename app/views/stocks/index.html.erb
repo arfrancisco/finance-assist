@@ -20,19 +20,20 @@
           <td colspan="8" class="px-4 py-6 text-center text-gray-400">No stocks ingested yet.</td>
         </tr>
       <% else %>
+        <%# latest_price_date, latest_close, price_count, disclosure_count, prediction_count
+            are virtual attributes computed in the controller via correlated subqueries. %>
         <% @stocks.each do |stock| %>
-          <% latest = stock.daily_prices.max_by(&:trading_date) %>
           <tr class="hover:bg-gray-50">
             <td class="px-4 py-3 font-medium">
               <%= link_to stock.symbol, stock_path(stock), class: "text-blue-600 hover:underline" %>
             </td>
             <td class="px-4 py-3 text-gray-700"><%= stock.company_name %></td>
             <td class="px-4 py-3 text-gray-500"><%= stock.sector %></td>
-            <td class="px-4 py-3 text-right text-gray-600"><%= latest&.trading_date %></td>
-            <td class="px-4 py-3 text-right text-gray-600"><%= latest ? number_with_precision(latest.close, precision: 2) : "—" %></td>
-            <td class="px-4 py-3 text-right text-gray-600"><%= number_with_delimiter(stock.daily_prices.size) %></td>
-            <td class="px-4 py-3 text-right text-gray-600"><%= stock.disclosures.size %></td>
-            <td class="px-4 py-3 text-right text-gray-600"><%= stock.predictions.size %></td>
+            <td class="px-4 py-3 text-right text-gray-600"><%= stock.latest_price_date %></td>
+            <td class="px-4 py-3 text-right text-gray-600"><%= stock.latest_close ? number_with_precision(stock.latest_close.to_f, precision: 2) : "—" %></td>
+            <td class="px-4 py-3 text-right text-gray-600"><%= number_with_delimiter(stock.price_count) %></td>
+            <td class="px-4 py-3 text-right text-gray-600"><%= stock.disclosure_count %></td>
+            <td class="px-4 py-3 text-right text-gray-600"><%= stock.prediction_count %></td>
           </tr>
         <% end %>
       <% end %>

@@ -127,6 +127,8 @@ PSE EDGE
 | WeightTuner is advisory | Creates a new ModelVersion but doesn't auto-switch — explicit `MODEL=v2` opt-in |
 | GraphQL over REST for MCP | Single endpoint, self-describing schema, flexible field selection — Claude can request exactly what it needs |
 | MCP server runs locally (stdio) | Secrets stay on the local machine; the remote endpoint is protected by API key; no server-to-server auth complexity |
+| Stocks index uses correlated subqueries | After backfilling 300k+ price rows, `includes` loaded the full table into Ruby memory. Correlated subqueries compute counts and latest price in SQL, backed by the `(stock_id, trading_date)` unique index. |
+| Dashboard counts cached via `Rails.cache` | Full-table COUNTs on large tables are expensive. Counts are cached for 5 minutes; freshness indicators (`maximum(:fetched_at/trading_date)`) are left uncached since stale sync timestamps would be misleading. |
 
 ## Portability (Railway → Render)
 
