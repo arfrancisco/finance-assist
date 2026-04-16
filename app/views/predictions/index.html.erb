@@ -1,36 +1,77 @@
-<%# Top-ranked predictions for a selected horizon and date.
-    Horizon and date are passed as query params (?horizon=20d&date=2026-04-15).
-    Each row can be expanded to reveal the AI-generated report if one exists. %>
+<%# Predictions page — shows top 10 by default; toggle to view all.
+    Params: ?horizon=20d  (default 20d)
+            ?date=YYYY-MM-DD (default latest)
+            ?show=all   (removes top-10 limit)
+            ?symbol=ALI (filters by stock symbol, case-insensitive) %>
 
 <div class="flex items-center justify-between mb-6">
-  <h1 class="text-xl font-semibold">Top Predictions</h1>
+  <h1 class="text-xl font-semibold">
+    Predictions
+    <span class="ml-2 text-sm font-normal text-gray-400">(<%= @total_count %>)</span>
+  </h1>
 
-  <%# Date selector %>
-  <%= form_with url: predictions_path, method: :get, data: { turbo_frame: "_top" } do |f| %>
-    <div class="flex items-center gap-3">
+  <%# Date selector + symbol filter — both preserve the current horizon and show mode %>
+  <%= form_with url: predictions_path, method: :get do |f| %>
+    <div class="flex items-center gap-2">
       <%= f.hidden_field :horizon, value: @horizon %>
+      <%= f.hidden_field :show,    value: (@show_all ? "all" : nil) if @show_all %>
+      <%= f.text_field :symbol,
+            value: @symbol,
+            placeholder: "Symbol…",
+            class: "text-sm border border-gray-300 rounded px-2 py-1 w-24 bg-white" %>
       <%= f.select :date,
             @dates.map { |d| [d.strftime("%b %d, %Y"), d.iso8601] },
             { selected: @date.iso8601 },
             class: "text-sm border border-gray-300 rounded px-2 py-1 bg-white" %>
       <%= f.submit "Go", class: "text-sm px-3 py-1 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 cursor-pointer" %>
+      <% if @symbol.present? %>
+        <%= link_to "Clear",
+              predictions_path(horizon: @horizon, date: @date.iso8601, show: (@show_all ? "all" : nil)),
+              class: "text-sm text-gray-400 hover:text-gray-600" %>
+      <% end %>
     </div>
   <% end %>
 </div>
 
-<%# Horizon tab switcher %>
-<div class="flex gap-1 mb-6 border-b border-gray-200">
+<%# Horizon tab switcher — preserves show mode and symbol when switching horizons %>
+<div class="flex gap-1 mb-4 border-b border-gray-200">
   <% PredictionsController::HORIZONS.each do |h| %>
-    <%= link_to predictions_path(horizon: h, date: @date.iso8601),
+    <%= link_to predictions_path(horizon: h, date: @date.iso8601, show: (@show_all ? "all" : nil), symbol: @symbol),
           class: "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors #{h == @horizon ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}" do %>
       <%= h == "5d" ? "5-Day" : h == "20d" ? "20-Day" : "60-Day" %>
     <% end %>
   <% end %>
 </div>
 
+<%# Top-10 / All toggle %>
+<div class="flex items-center justify-between mb-4 text-sm">
+  <% if @show_all %>
+    <span class="text-gray-500">
+      Showing all <%= @symbol.present? ? "matching" : @total_count.to_s %> predictions
+      <% unless @symbol.present? %>
+        — <%= link_to "Back to top 10 ←",
+              predictions_path(horizon: @horizon, date: @date.iso8601, symbol: @symbol),
+              class: "text-blue-600 hover:underline" %>
+      <% end %>
+    </span>
+  <% else %>
+    <span class="text-gray-500">
+      Showing top <%= PredictionsController::DEFAULT_LIMIT %>
+      — <%= link_to "View all #{@total_count} →",
+            predictions_path(horizon: @horizon, date: @date.iso8601, show: "all", symbol: @symbol),
+            class: "text-blue-600 hover:underline" %>
+    </span>
+  <% end %>
+  <span class="text-gray-400">As of <%= @date.strftime("%b %d, %Y") %></span>
+</div>
+
 <% if @predictions.empty? %>
   <div class="bg-white rounded-lg border border-gray-200 px-6 py-12 text-center text-gray-400">
-    No predictions found for <%= @horizon %> horizon on <%= @date.strftime("%b %d, %Y") %>.
+    <% if @symbol.present? %>
+      No predictions found for "<%= @symbol %>" on the <%= @horizon %> horizon on <%= @date.strftime("%b %d, %Y") %>.
+    <% else %>
+      No predictions found for <%= @horizon %> horizon on <%= @date.strftime("%b %d, %Y") %>.
+    <% end %>
   </div>
 <% else %>
   <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -48,7 +89,7 @@
           <th class="px-4 py-3 text-center font-medium text-gray-500">Report</th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-gray-100" data-controller="predictions">
+      <tbody class="divide-y divide-gray-100">
         <% @predictions.each do |p| %>
           <%# Each prediction may have an expandable AI report panel below it %>
           <tr class="hover:bg-gray-50 cursor-pointer"
@@ -142,7 +183,5 @@
     </table>
   </div>
 
-  <p class="mt-3 text-xs text-gray-400">
-    Click any row to expand the AI-generated report. As of <%= @date.strftime("%b %d, %Y") %>.
-  </p>
+  <p class="mt-3 text-xs text-gray-400">Click any row to expand the AI-generated report.</p>
 <% end %>
