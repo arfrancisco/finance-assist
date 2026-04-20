@@ -49,8 +49,8 @@ RSpec.describe Reporting::ReportGenerator do
       expect(generator.call).to be_a(PredictionReport)
     end
 
-    it "sets prompt_version to v1-llm" do
-      expect(generator.call.prompt_version).to eq("v1-llm")
+    it "sets prompt_version to the current PROMPT_VERSION" do
+      expect(generator.call.prompt_version).to eq(Reporting::ReportGenerator::PROMPT_VERSION)
     end
 
     it "sets llm_model from the LLM response" do
