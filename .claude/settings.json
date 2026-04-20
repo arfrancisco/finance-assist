@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit -m ' *)",
+      "Bash(grep -E \"\\\\.rb$\")",
+      "Bash(grep -l \"FeatureSnapshot\\\\|SelfAudit\\\\|PredictionOutcome\\\\|Prediction\" /home/alain/finance-assist/app/models/*.rb)"
+    ]
+  }
+}

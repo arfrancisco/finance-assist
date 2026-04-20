@@ -49,3 +49,7 @@
 
 /app/assets/builds/*
 !/app/assets/builds/.keep
+
+# Claude Code personal state (keep shared skills + project settings, ignore personal)
+/.claude/settings.local.json
+/.claude.json
