@@ -5,6 +5,8 @@ module Types
     field :catalyst_text, String, null: true
     field :risk_text, String, null: true
     field :rationale_text, String, null: true
+    field :guidance_text, String, null: true
+    field :education_text, String, null: true
     field :llm_model, String, null: true
     field :prompt_version, String, null: false
     field :created_at, String, null: false

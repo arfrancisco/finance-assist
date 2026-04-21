@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_04_15_182302) do
+ActiveRecord::Schema[7.1].define(version: 2026_04_21_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -151,6 +151,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_04_15_182302) do
     t.string "llm_model"
     t.string "prompt_version", null: false
     t.datetime "created_at", null: false
+    t.text "guidance_text"
+    t.text "education_text"
     t.index ["prediction_id"], name: "index_prediction_reports_on_prediction_id", unique: true
   end
 

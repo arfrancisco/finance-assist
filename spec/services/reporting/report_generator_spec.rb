@@ -28,6 +28,8 @@ RSpec.describe Reporting::ReportGenerator do
         -> Elevated volatility at 1.5%
         -> Liquidity risk if volume drops
         RATIONALE: ALI ranks #1 due to strong momentum and relative outperformance vs PSEi benchmark.
+        GUIDANCE: The model's view is cautiously positive — consider a small position over the next week, but keep in mind ALI's daily swings have been choppy and a 0.75 probability is still a guess. Size small.
+        FOR_BEGINNERS: Short-term momentum picks often reverse quickly — treat this as a trade, not an investment.
       TEXT
       model: "claude-opus-4-6",
       prompt_version: "v1-llm",
@@ -90,6 +92,29 @@ RSpec.describe Reporting::ReportGenerator do
     it "parses RATIONALE into rationale_text" do
       report = generator.call
       expect(report.rationale_text).to include("ranks #1")
+    end
+
+    it "parses GUIDANCE into guidance_text" do
+      report = generator.call
+      expect(report.guidance_text).to include("model's view")
+      expect(report.guidance_text).to include("small position")
+    end
+
+    it "parses FOR_BEGINNERS into education_text" do
+      report = generator.call
+      expect(report.education_text).to include("momentum")
+    end
+
+    it "uses the v3-beginner-guidance prompt version" do
+      report = generator.call
+      expect(report.prompt_version).to eq("v3-beginner-guidance")
+    end
+
+    it "requests max_tokens of 900 from the LLM to fit the new sections" do
+      expect(llm_client).to receive(:complete).with(
+        hash_including(max_tokens: 900)
+      ).and_return(llm_response)
+      generator.call
     end
 
     it "is idempotent — re-running returns the existing report without calling LLM again" do

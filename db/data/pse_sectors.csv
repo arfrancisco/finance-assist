@@ -1,0 +1,93 @@
+symbol,sector,industry
+# PSE sector classifications. Populate from PSE's official sector list and re-run finance:refresh_symbols.
+# The importer skips rows with a blank sector and leaves those stocks' sector/industry untouched.
+# Seeded with well-known names — fill in the rest as needed.
+ALI,Property,Property Developers
+SMPH,Property,Property Developers
+MEG,Property,Property Developers
+RLC,Property,Property Developers
+VLL,Property,Property Developers
+FLI,Property,Property Developers
+ROCK,Property,Property Developers
+CPG,Property,Property Developers
+DD,Property,Property Developers
+SHNG,Property,Property Developers
+BDO,Financial,Banks
+BPI,Financial,Banks
+MBT,Financial,Banks
+SECB,Financial,Banks
+PNB,Financial,Banks
+CHIB,Financial,Banks
+UBP,Financial,Banks
+RCB,Financial,Banks
+BNCOM,Financial,Banks
+EW,Financial,Banks
+PSB,Financial,Banks
+SM,Holding Firms,Holding Firms
+AC,Holding Firms,Holding Firms
+AEV,Holding Firms,Holding Firms
+GTCAP,Holding Firms,Holding Firms
+JGS,Holding Firms,Holding Firms
+LTG,Holding Firms,Holding Firms
+DMC,Holding Firms,Holding Firms
+COSCO,Holding Firms,Holding Firms
+AGI,Holding Firms,Holding Firms
+SMC,Holding Firms,Holding Firms
+MPI,Holding Firms,Holding Firms
+ANS,Holding Firms,Holding Firms
+APO,Holding Firms,Holding Firms
+FGEN,Holding Firms,Holding Firms
+MED,Holding Firms,Holding Firms
+JFC,Services,Restaurants & Recreation
+MAXS,Services,Restaurants & Recreation
+PGOLD,Services,Retail
+RRHI,Services,Retail
+WLCON,Services,Retail
+MRSGI,Services,Retail
+ALLDY,Services,Retail
+SSI,Services,Retail
+MER,Services,Electricity Distribution
+PLDT,Services,Telecommunications
+GLO,Services,Telecommunications
+CNVRG,Services,Telecommunications
+DITO,Services,Telecommunications
+ICT,Services,Transportation Services
+CEB,Services,Transportation Services
+2GO,Services,Transportation Services
+BLOOM,Services,Casinos & Gaming
+BEL,Services,Casinos & Gaming
+PLC,Services,Casinos & Gaming
+RWM,Services,Casinos & Gaming
+URC,Industrial,Food Beverage & Tobacco
+CNPF,Industrial,Food Beverage & Tobacco
+MONDE,Industrial,Food Beverage & Tobacco
+EMP,Industrial,Food Beverage & Tobacco
+RFM,Industrial,Food Beverage & Tobacco
+CIC,Industrial,Food Beverage & Tobacco
+FB,Industrial,Food Beverage & Tobacco
+AP,Industrial,Electricity & Power
+EDC,Industrial,Electricity & Power
+FPH,Industrial,Electricity & Power
+ACEN,Industrial,Electricity & Power
+SPNEC,Industrial,Electricity & Power
+ALTER,Industrial,Electricity & Power
+CREC,Industrial,Electricity & Power
+REDC,Industrial,Electricity & Power
+ASLAG,Industrial,Electricity & Power
+BSC,Industrial,Electricity & Power
+PCOR,Industrial,Oil & Gas
+SHLPH,Industrial,Oil & Gas
+PXP,Industrial,Oil & Gas
+MWC,Industrial,Water Utilities
+TECH,Industrial,Electrical Components & Equipment
+CHP,Industrial,Construction Materials
+EEI,Industrial,Construction Materials
+HOME,Industrial,Construction Materials
+PHEN,Industrial,Construction Materials
+NIKL,Mining & Oil,Mining
+AT,Mining & Oil,Mining
+PX,Mining & Oil,Mining
+AR,Mining & Oil,Mining
+LC,Mining & Oil,Mining
+SCC,Mining & Oil,Coal
+MRC,Mining & Oil,Oil & Gas

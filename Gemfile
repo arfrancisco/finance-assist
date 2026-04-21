@@ -61,6 +61,9 @@ gem "solid_queue", "~> 0.9"
 gem "graphql", "~> 2.3"
 gem "ostruct"
 
+# CSV (moved out of default gems in Ruby 3.4)
+gem "csv"
+
 # Environment variables
 gem "dotenv-rails", "~> 3.1"
 

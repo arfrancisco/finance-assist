@@ -6,25 +6,33 @@ module Reporting
   #   ReportGenerator.new(prediction).call
   #   ReportGenerator.new(prediction, llm_client: Reporting::Llm::Client.build).call
   class ReportGenerator
-    PROMPT_VERSION = "v2-beginner".freeze
+    PROMPT_VERSION = "v3-beginner-guidance".freeze
 
     SYSTEM_PROMPT = <<~PROMPT.strip.freeze
       You are writing a short stock brief for a curious non-expert investor in the Philippines who has little background in stocks or trading.
-      Your job is to make the numbers understandable, not to impress anyone with jargon.
+      Your job is to translate the model's numbers into plain language — and give them a model-based take they can act on with eyes open.
 
       Writing rules:
       - Use plain, everyday English. Short sentences. Active voice.
-      - If you must use a finance term (momentum, volatility, valuation, relative strength, benchmark, drawdown), explain it in the same sentence in plain words the first time it appears. Example: "volatility (how much the price swings up and down day to day)".
-      - Translate numbers into meaning. "Up 8% over the last month" is better than "momentum_20d = 0.08". "Price has been fairly steady" is better than "low volatility".
-      - Be concrete and specific. Tie claims back to the data provided (price moves, disclosures, rank).
-      - Do not give financial advice. Do not tell the reader to buy, sell, or hold. Describe what the data says, not what the reader should do.
-      - Do not invent facts. If data is missing, skip that point rather than guessing.
+      - If you must use a finance term (momentum, volatility, valuation, relative strength, benchmark, drawdown), explain it in plain words in the same sentence it first appears. Example: "volatility (how much the price swings up and down day to day)".
+      - Translate numbers into meaning. "Up about 8% over the past month" is better than "momentum_20d = 0.08".
+      - Be concrete and specific. Each brief must read differently from others in the same top list — cite at least one concrete number (recent % move or current price) and at least one detail that sets THIS stock apart (a recent filing, a sharp move, the absence of news, sector context, etc.).
+      - Do not invent facts. If data is missing (e.g., no valuation or quality score), skip that point silently rather than guessing or flagging the gap as a negative.
+
+      On the "what to do" framing:
+      - You MAY share what the data suggests the reader could do (watch, consider a small position, avoid). But:
+        - Always label it as the model's view, not personalized advice.
+        - Always include at least one honest caveat tied to THIS stock's specific weakness (choppy price, thin data, no fresh news, small-cap liquidity, etc.).
+        - Never imply certainty. A 0.85 probability is still a guess — say so.
+        - Remind the reader to size small and never bet more than they can afford to lose.
 
       Respond with exactly these labeled sections (one per line, label followed by content):
-      SUMMARY: <1-2 sentences in plain English: what has the stock been doing recently, and in one phrase why the model flagged it>
-      CATALYSTS: <bullet points of what could push the price up, one per line starting with ->. Ground each bullet in the recent price action or disclosures provided.>
+      SUMMARY: <1-2 sentences. What has the stock been doing recently (cite a concrete number), and in one phrase what makes this setup different from other top-ranked momentum names today.>
+      CATALYSTS: <bullet points of what could push the price up, one per line starting with ->. Ground each in the price action, disclosures, or sector context provided.>
       RISKS: <bullet points of what could go wrong, one per line starting with ->. Translate volatility and risk numbers into plain language.>
-      RATIONALE: <1-2 sentences explaining, in plain words, why the model's combined score is high — what mix of recent price trend, steadiness, and company news drove the ranking.>
+      RATIONALE: <1-2 sentences. In plain words, why the model's combined score is high — what mix of recent price trend, steadiness, and company news drove the ranking.>
+      GUIDANCE: <1 short paragraph labeled as "the model's view". State the lean (positive / mixed / cautious), a suggested stance (watch / consider a small position / avoid), a time frame tied to the horizon given, and one grain-of-salt caveat specific to THIS stock. End with a reminder that this is the model's view, not advice, and to size small.>
+      FOR_BEGINNERS: <1 sentence tied to the horizon. For 5d: short-term momentum picks often reverse quickly — this is a trade, not an investment. For 20d: one month is long enough for news to matter, short enough that price swings still dominate. For 60d: three months lets company fundamentals start to matter, but the model still leans heavily on price trends.>
     PROMPT
 
     def initialize(prediction, llm_client: nil)
@@ -48,7 +56,7 @@ module Reporting
       response    = @llm_client.complete(
         system:     SYSTEM_PROMPT,
         user:       user_prompt,
-        max_tokens: 600,
+        max_tokens: 900,
         temperature: 0.3
       )
 
@@ -60,6 +68,8 @@ module Reporting
         catalyst_text:  sections[:catalysts],
         risk_text:      sections[:risks],
         rationale_text: sections[:rationale],
+        guidance_text:  sections[:guidance],
+        education_text: sections[:for_beginners],
         llm_model:      response[:model],
         prompt_version: PROMPT_VERSION
       )
@@ -125,7 +135,7 @@ module Reporting
       end
 
       lines << ""
-      lines << "Write the brief for a beginner reader. Follow the section format exactly."
+      lines << "Write the brief for a beginner reader. Follow the section format exactly, including GUIDANCE and FOR_BEGINNERS."
       lines.join("\n")
     end
 
@@ -167,41 +177,39 @@ module Reporting
       end
     end
 
-    # Parse LLM response into the 4 sections.
+    SECTION_LABELS = {
+      "SUMMARY"       => :summary,
+      "CATALYSTS"     => :catalysts,
+      "RISKS"         => :risks,
+      "RATIONALE"     => :rationale,
+      "GUIDANCE"      => :guidance,
+      "FOR_BEGINNERS" => :for_beginners
+    }.freeze
+
+    # Parse LLM response into the labeled sections.
     # Falls back to storing the full response in summary if parsing fails.
     def parse_response(text)
-      return { summary: text, catalysts: nil, risks: nil, rationale: nil } if text.blank?
+      empty = SECTION_LABELS.values.index_with { nil }
+      return empty.merge(summary: text) if text.blank?
 
-      sections = { summary: nil, catalysts: nil, risks: nil, rationale: nil }
-
+      sections = empty.dup
       current_key = nil
       buffer = []
 
       text.each_line do |line|
         stripped = line.strip
-        if stripped.start_with?("SUMMARY:")
+        matched_label = SECTION_LABELS.keys.find { |label| stripped.start_with?("#{label}:") }
+
+        if matched_label
           flush_buffer(sections, current_key, buffer)
-          current_key = :summary
-          buffer = [ stripped.sub(/\ASUMMARY:\s*/, "") ]
-        elsif stripped.start_with?("CATALYSTS:")
-          flush_buffer(sections, current_key, buffer)
-          current_key = :catalysts
-          buffer = [ stripped.sub(/\ACATALYSTS:\s*/, "") ]
-        elsif stripped.start_with?("RISKS:")
-          flush_buffer(sections, current_key, buffer)
-          current_key = :risks
-          buffer = [ stripped.sub(/\ARISKS:\s*/, "") ]
-        elsif stripped.start_with?("RATIONALE:")
-          flush_buffer(sections, current_key, buffer)
-          current_key = :rationale
-          buffer = [ stripped.sub(/\ARATIONALE:\s*/, "") ]
+          current_key = SECTION_LABELS[matched_label]
+          buffer = [ stripped.sub(/\A#{matched_label}:\s*/, "") ]
         elsif current_key
           buffer << stripped unless stripped.empty? && buffer.last&.empty?
         end
       end
       flush_buffer(sections, current_key, buffer)
 
-      # Fallback: if nothing parsed, put everything in summary
       if sections.values.all?(&:nil?)
         sections[:summary] = text.strip
       end
