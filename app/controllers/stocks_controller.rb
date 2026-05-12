@@ -24,4 +24,16 @@ class StocksController < ApplicationController
     # includes(:prediction_report) prevents N+1 when rendering inline report panels
     @predictions   = @stock.predictions.order(as_of_date: :desc).limit(9).includes(:prediction_report)
   end
+
+  def update
+    @stock = Stock.find(params[:id])
+    @stock.update!(stock_params)
+    redirect_to stocks_path, notice: "#{@stock.symbol} sector updated."
+  end
+
+  private
+
+  def stock_params
+    params.require(:stock).permit(:sector)
+  end
 end

@@ -7,7 +7,7 @@ Rails.application.routes.draw do
 
   root "dashboard#index"
 
-  resources :stocks,       only: [:index, :show]
+  resources :stocks,       only: [:index, :show, :update]
   resources :daily_prices, only: [:index]
   resources :disclosures,  only: [:index, :show]
   resources :predictions,  only: [:index]

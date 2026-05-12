@@ -2,8 +2,35 @@
   <%= link_to "← Stocks", stocks_path, class: "text-sm text-blue-600 hover:underline" %>
 </div>
 
+<datalist id="sector-list">
+  <% Stock.where.not(sector: nil).distinct.pluck(:sector).sort.each do |s| %>
+    <option value="<%= s %>">
+  <% end %>
+</datalist>
+
 <h1 class="text-xl font-semibold mb-1"><%= @stock.symbol %></h1>
-<p class="text-gray-500 text-sm mb-6"><%= @stock.company_name %> · <%= @stock.sector %> · <%= @stock.industry %></p>
+<div class="flex items-center gap-1 text-gray-500 text-sm mb-6">
+  <span><%= @stock.company_name %></span>
+  <span>·</span>
+  <%= form_with model: @stock, url: stock_path(@stock), method: :patch,
+        data: { controller: "sector" } do |f| %>
+    <div class="flex items-center gap-1">
+      <%= f.text_field :sector,
+            list: "sector-list",
+            placeholder: "set sector",
+            autocomplete: "off",
+            class: "text-sm text-gray-500 border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-400 focus:outline-none bg-transparent w-36",
+            data: { sector_target: "input" } %>
+      <%= f.submit "✓",
+            class: "text-xs text-gray-400 hover:text-green-600 cursor-pointer hidden",
+            data: { sector_target: "submit" } %>
+    </div>
+  <% end %>
+  <% if @stock.industry.present? %>
+    <span>·</span>
+    <span><%= @stock.industry %></span>
+  <% end %>
+</div>
 
 <!-- Recent Prices -->
 <section class="mb-8">

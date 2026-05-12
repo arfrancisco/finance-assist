@@ -1,5 +1,11 @@
 <h1 class="text-xl font-semibold mb-6">Stocks (<%= @stocks.size %>)</h1>
 
+<datalist id="sector-list">
+  <% Stock.where.not(sector: nil).distinct.pluck(:sector).sort.each do |s| %>
+    <option value="<%= s %>">
+  <% end %>
+</datalist>
+
 <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
   <table class="min-w-full divide-y divide-gray-200 text-sm">
     <thead class="bg-gray-50">
@@ -28,7 +34,22 @@
               <%= link_to stock.symbol, stock_path(stock), class: "text-blue-600 hover:underline" %>
             </td>
             <td class="px-4 py-3 text-gray-700"><%= stock.company_name %></td>
-            <td class="px-4 py-3 text-gray-500"><%= stock.sector %></td>
+            <td class="px-4 py-3">
+              <%= form_with model: stock, url: stock_path(stock), method: :patch,
+                    data: { controller: "sector" } do |f| %>
+                <div class="flex items-center gap-1">
+                  <%= f.text_field :sector,
+                        list: "sector-list",
+                        placeholder: "—",
+                        autocomplete: "off",
+                        class: "w-32 text-sm text-gray-500 border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-400 focus:outline-none bg-transparent",
+                        data: { sector_target: "input" } %>
+                  <%= f.submit "✓",
+                        class: "text-xs text-gray-400 hover:text-green-600 cursor-pointer hidden",
+                        data: { sector_target: "submit" } %>
+                </div>
+              <% end %>
+            </td>
             <td class="px-4 py-3 text-right text-gray-600"><%= stock.latest_price_date %></td>
             <td class="px-4 py-3 text-right text-gray-600"><%= stock.latest_close ? number_with_precision(stock.latest_close.to_f, precision: 2) : "—" %></td>
             <td class="px-4 py-3 text-right text-gray-600"><%= number_with_delimiter(stock.price_count) %></td>
