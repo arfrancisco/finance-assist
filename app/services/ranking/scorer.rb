@@ -89,9 +89,9 @@ module Ranking
         end
       end
 
-      confidence = total.abs.clamp(0.0, 1.0)
+      confidence = 1.0 / (1.0 + Math.exp(-total.abs))
       direction  = total >= 0 ? "up" : "down"
-      rec_type   = (direction == "up" && confidence > 0.6) ? "buy" : "hold"
+      rec_type   = (direction == "up" && confidence > 0.7) ? "buy" : "hold"
 
       predicted_probability = 1.0 / (1.0 + Math.exp(-total))
 

@@ -119,6 +119,8 @@ module Validation
 
       calibration_bands = compute_calibration_bands(outcomes)
 
+      drawdown_metrics = compute_drawdown_metrics(outcomes)
+
       {
         precision:,
         recall:,
@@ -126,7 +128,8 @@ module Validation
         top3_avg_return: top3,
         top5_avg_return: top5,
         rank_spread:,
-        calibration_bands:
+        calibration_bands:,
+        **drawdown_metrics
       }
     end
 
@@ -178,6 +181,25 @@ module Validation
         next nil if group.empty?
         { n: group.size, hit_rate: (group.count(&:beat_benchmark).to_f / group.size).round(6) }
       end
+    end
+
+    def compute_drawdown_metrics(outcomes)
+      drawdowns = outcomes.filter_map { |o| o.max_drawdown&.to_f }
+      avg_max_drawdown = drawdowns.any? ? (drawdowns.sum / drawdowns.size).round(6) : nil
+
+      excess_returns = outcomes.map { |o| o.excess_return.to_f }
+      avg_excess = excess_returns.sum / excess_returns.size
+      variance = excess_returns.sum { |r| (r - avg_excess)**2 } / excess_returns.size
+      std_dev = Math.sqrt(variance)
+      sharpe_proxy = std_dev > 0 ? (avg_excess / std_dev).round(6) : nil
+
+      {
+        avg_max_drawdown:,
+        sharpe_proxy:,
+        win_count:     outcomes.count { |o| o.outcome_label == "win" },
+        neutral_count: outcomes.count { |o| o.outcome_label == "neutral" },
+        loss_count:    outcomes.count { |o| o.outcome_label == "loss" }
+      }
     end
 
     def build_run(horizon, sample_size, metrics)
